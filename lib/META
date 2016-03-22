@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 8d33fe9ea65006f9b049701cfc05ab22)
+# DO NOT EDIT (digest: 5e7d48775cbcff2c75167eab61fd1578)
 version = "2.6.1"
 description = "Ethernet, TCP/IPv4 and DHCPv4 library"
 requires = "io-page mirage-types ipaddr cstruct mirage-profile bytes logs"
@@ -212,6 +212,17 @@ package "ipv4" (
  archive(native) = "ipv4.cmxa"
  archive(native, plugin) = "ipv4.cmxs"
  exists_if = "ipv4.cma"
+)
+
+package "icmpv4" (
+ version = "2.6.1"
+ description = "Ethernet, TCP/IPv4 and DHCPv4 library"
+ requires = "io-page mirage-types ipaddr cstruct lwt tcpip result"
+ archive(byte) = "icmpv4.cma"
+ archive(byte, plugin) = "icmpv4.cma"
+ archive(native) = "icmpv4.cmxa"
+ archive(native, plugin) = "icmpv4.cmxs"
+ exists_if = "icmpv4.cma"
 )
 
 package "ethif-unix" (

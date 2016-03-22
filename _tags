@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: e2694304cb498e505dd79523945ee700)
+# DO NOT EDIT (digest: 49ffd919d43ef64782e49e0d97cb4a76)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -39,6 +39,9 @@ true: annot, bin_annot
 "lib/ipv4.cmxs": use_ipv4
 # Library ipv6
 "lib/ipv6.cmxs": use_ipv6
+# Library icmpv4
+"lib/icmpv4.cmxs": use_icmpv4
+<lib/*.ml{,i,y}>: pkg_result
 # Library udp
 "lib/udp.cmxs": use_udp
 # Library tcp
@@ -216,8 +219,3 @@ true: annot, bin_annot
 <lib_test/*.ml{,i,y}>: use_tcpip
 <lib_test/test.{native,byte}>: custom
 # OASIS_STOP
-true: annot, bin_annot, principal, strict_sequence, debug
-<tcp/pcb.ml>: pkg_cstruct.syntax
-<lib/wire_structs.ml>: pkg_cstruct.syntax
-<lib/arpv4.ml>: pkg_cstruct.syntax
-<dhcp/dhcp_clientv4.ml>: pkg_cstruct.syntax
