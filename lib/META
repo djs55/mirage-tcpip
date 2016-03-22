@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 5e7d48775cbcff2c75167eab61fd1578)
+# DO NOT EDIT (digest: d97417891a041400c80541c95009b02a)
 version = "2.6.1"
 description = "Ethernet, TCP/IPv4 and DHCPv4 library"
 requires = "io-page mirage-types ipaddr cstruct mirage-profile bytes logs"
@@ -138,7 +138,7 @@ package "stack-unix" (
  version = "2.6.1"
  description = "Ethernet, TCP/IPv4 and DHCPv4 library"
  requires =
- "tcpip.udpv4-unix tcpip.tcpv4-unix tcpip.udpv6-unix tcpip.tcpv6-unix tcpip.stack-direct lwt lwt.unix ipaddr.unix mirage-unix mirage-clock-unix mirage-console.unix mirage-types.lwt io-page.unix"
+ "tcpip.udpv4-unix tcpip.tcpv4-unix tcpip.icmpv4-unix tcpip.udpv6-unix tcpip.tcpv6-unix tcpip.stack-direct lwt lwt.unix ipaddr.unix mirage-unix mirage-clock-unix mirage-console.unix mirage-types.lwt io-page.unix"
  archive(byte) = "tcpip-stack-unix.cma"
  archive(byte, plugin) = "tcpip-stack-unix.cma"
  archive(native) = "tcpip-stack-unix.cmxa"
@@ -212,6 +212,18 @@ package "ipv4" (
  archive(native) = "ipv4.cmxa"
  archive(native, plugin) = "ipv4.cmxs"
  exists_if = "ipv4.cma"
+)
+
+package "icmpv4-unix" (
+ version = "2.6.1"
+ description = "Ethernet, TCP/IPv4 and DHCPv4 library"
+ requires =
+ "tcpip.ipv4-unix lwt lwt.unix mirage-unix ipaddr.unix cstruct.lwt io-page.unix"
+ archive(byte) = "icmpv4-unix.cma"
+ archive(byte, plugin) = "icmpv4-unix.cma"
+ archive(native) = "icmpv4-unix.cmxa"
+ archive(native, plugin) = "icmpv4-unix.cmxs"
+ exists_if = "icmpv4-unix.cma"
 )
 
 package "icmpv4" (
