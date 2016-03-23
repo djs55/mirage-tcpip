@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: d97417891a041400c80541c95009b02a)
+# DO NOT EDIT (digest: 135221ab1e9da2ad74ff7b30c87890dc)
 version = "2.6.1"
 description = "Ethernet, TCP/IPv4 and DHCPv4 library"
 requires = "io-page mirage-types ipaddr cstruct mirage-profile bytes logs"
@@ -162,7 +162,7 @@ package "stack-direct" (
  version = "2.6.1"
  description = "Ethernet, TCP/IPv4 and DHCPv4 library"
  requires =
- "io-page mirage-types ipaddr cstruct lwt tcpip.ethif tcpip.arpv4 tcpip.udp tcpip.tcp tcpip.dhcpv4"
+ "io-page mirage-types ipaddr cstruct lwt tcpip.ethif tcpip.arpv4 tcpip.icmpv4 tcpip.udp tcpip.tcp tcpip.dhcpv4"
  archive(byte) = "tcpip-stack-direct.cma"
  archive(byte, plugin) = "tcpip-stack-direct.cma"
  archive(native) = "tcpip-stack-direct.cmxa"
