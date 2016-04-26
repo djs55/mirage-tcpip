@@ -39,15 +39,21 @@ module Make(Ip: V1_LWT.IP) = struct
   (* FIXME: [t] is not taken into account at all? *)
   let input ~listeners _t ~src ~dst buf =
     let dst_port = Wire_structs.get_udp_dest_port buf in
-    let data =
-      Cstruct.sub buf Wire_structs.sizeof_udp
-        (Wire_structs.get_udp_length buf - Wire_structs.sizeof_udp)
-    in
-    match listeners ~dst_port with
-    | None    -> Lwt.return_unit
-    | Some fn ->
-      let src_port = Wire_structs.get_udp_source_port buf in
-      fn ~src ~dst ~src_port data
+    if Cstruct.len buf < (Wire_structs.get_udp_length buf) then begin
+      (* The packet is malformed, possibly truncated. Drop it instead of throwing
+         an Illegal_argument exception. *)
+      Lwt.return_unit
+    end else begin
+      let data =
+        Cstruct.sub buf Wire_structs.sizeof_udp
+          (Wire_structs.get_udp_length buf - Wire_structs.sizeof_udp)
+      in
+      match listeners ~dst_port with
+      | None    -> Lwt.return_unit
+      | Some fn ->
+        let src_port = Wire_structs.get_udp_source_port buf in
+        fn ~src ~dst ~src_port data
+    end
 
   let writev ?source_ip ?source_port ~dest_ip ~dest_port t bufs =
     let source_ip = match source_ip with
