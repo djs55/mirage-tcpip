@@ -16,6 +16,9 @@
 
 open Lwt.Infix
 
+let src = Logs.Src.create "tcpip-stack-direct" ~doc:"Pure OCaml TCP/IP stack"
+module Log = (val Logs.src_log src : Logs.LOG)
+
 type direct_ipv4_input = src:Ipaddr.V4.t -> dst:Ipaddr.V4.t -> Cstruct.t -> unit Lwt.t
 module type UDPV4_DIRECT = V1_LWT.UDPV4
   with type ipinput = direct_ipv4_input
@@ -51,7 +54,7 @@ struct
   module UDPV4 = Udpv4
   module TCPV4 = Tcpv4
   module IPV4  = Ipv4
-  module Dhcp = Dhcp_clientv4.Make(Console)(Time)(Random)(Udpv4)
+  module Dhcp = Dhcp_clientv4.Make(Time)(Random)(Udpv4)
 
   type tcpv4_action = [
     | `Reject
@@ -63,7 +66,6 @@ struct
   type t = {
     id    : id;
     mode  : mode;
-    c     : Console.t;
     netif : Netif.t;
     ethif : Ethif.t;
     arpv4 : Arpv4.t;
@@ -104,6 +106,9 @@ struct
         (if Hashtbl.mem t.tcpv4_listeners port
          then Lwt.return (`Accept (Hashtbl.find t.tcpv4_listeners port))
          else on_flow_arrival ~src ~dst:(ip, port)))
+  let pp_opt pp f = function
+    | None -> Format.pp_print_string f "None"
+    | Some x -> pp f x
 
   let configure_dhcp t info =
     Ipv4.set_ip t.ipv4 info.Dhcp.ip_addr
@@ -113,30 +118,30 @@ struct
      | None    -> Lwt.return_unit)
     >>= fun () ->
     Ipv4.set_ip_gateways t.ipv4 info.Dhcp.gateways
-    >>= fun () ->
-    Printf.ksprintf (Console.log_s t.c) "DHCP offer received and bound to %s nm %s gw [%s]"
-      (Ipaddr.V4.to_string info.Dhcp.ip_addr)
-      (match info.Dhcp.netmask with None -> "none" | Some nm -> Ipaddr.V4.to_string nm)
+    >|= fun () ->
+    Log.info (fun f -> f "DHCP offer received and bound to %a nm %a gw [%s]"
+      Ipaddr.V4.pp_hum info.Dhcp.ip_addr
+      (pp_opt Ipaddr.V4.pp_hum) info.Dhcp.netmask
       (String.concat ", " (List.map Ipaddr.V4.to_string info.Dhcp.gateways))
+    )
 
   let configure t config =
     match config with
     | `DHCP -> begin
         (* TODO: spawn a background thread to reconfigure the interface
            when future offers are received. *)
-        let dhcp, offers = Dhcp.create t.c (Ethif.mac t.ethif) t.udpv4 in
+        let dhcp, offers = Dhcp.create (Ethif.mac t.ethif) t.udpv4 in
         listen_udpv4 t ~port:68 (Dhcp.input dhcp);
         (* TODO: stop listening to this port when done with DHCP. *)
         Lwt_stream.get offers >>= function
-        | None -> Console.log_s t.c ("No DHCP offer received")
+        | None -> Log.info (fun f -> f "No DHCP offer received"); Lwt.return ()
         | Some offer -> configure_dhcp t offer
       end
     | `IPv4 (addr, netmask, gateways) ->
-      Console.log_s t.c (Printf.sprintf "Manager: Interface to %s nm %s gw [%s]\n%!"
-                           (Ipaddr.V4.to_string addr)
-                           (Ipaddr.V4.to_string netmask)
-                           (String.concat ", " (List.map Ipaddr.V4.to_string gateways)))
-      >>= fun () ->
+      Log.info (fun f -> f "Manager: Interface to %a nm %a gw [%s]"
+                           Ipaddr.V4.pp_hum addr
+                           Ipaddr.V4.pp_hum netmask
+                           (String.concat ", " (List.map Ipaddr.V4.to_string gateways)));
       Ipv4.set_ip t.ipv4 addr
       >>= fun () ->
       Ipv4.set_ip_netmask t.ipv4 netmask
@@ -167,16 +172,14 @@ struct
 
   let connect id ethif arpv4 ipv4 udpv4 tcpv4 =
     let { V1_LWT.console = c; interface = netif; mode; _ } = id in
-    Console.log_s c "Manager: connect"
-    >>= fun () ->
+    Log.info (fun f -> f "Manager: connect");
     let udpv4_listeners = Hashtbl.create 7 in
     let tcpv4_listeners = Hashtbl.create 7 in
     let udpv4_default ~src ~dst ~src_port ~dst_port = `Reject in
     let tcpv4_on_flow_arrival ~src ~dst = Lwt.return `Reject in
-    let t = { id; c; mode; netif; ethif; arpv4; ipv4; tcpv4; udpv4;
+    let t = { id; mode; netif; ethif; arpv4; ipv4; tcpv4; udpv4;
               udpv4_listeners; tcpv4_listeners; tcpv4_on_flow_arrival } in
-    Console.log_s t.c "Manager: configuring"
-    >>= fun () ->
+    Log.info (fun f -> f "Manager: configuring");
     let _ = listen t in
     configure t t.mode
     >>= fun () ->
@@ -186,10 +189,11 @@ struct
        to spawn a background thread, but we need to consider how to inform the
        application stack that the IP address has changed (perhaps via a control
        Lwt_stream that the application can ignore if it doesn't care). *)
-    Console.log_s t.c "Manager: configuration done" >>= fun () ->
+    Log.info (fun f -> f "Manager: configuration done");
     Lwt.return (`Ok t)
 
   let disconnect t =
     (* TODO: kill the listening thread *)
-    Console.log_s t.c "Manager: disconnect"
+    Log.info (fun f -> f "Manager: disconnect");
+    Lwt.return_unit
 end

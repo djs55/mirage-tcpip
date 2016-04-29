@@ -54,6 +54,9 @@ end
 
 module Ipv6_wire = Wire_structs.Ipv6_wire
 
+let src = Logs.Src.create "ipv6" ~doc:"Mirage IPv6"
+module Log = (val Logs.src_log src : Logs.LOG)
+
 module I = Ipaddr
 
 (* This is temporary. See https://github.com/mirage/ocaml-ipaddr/pull/36 *)
@@ -995,7 +998,7 @@ module Make (E : V1_LWT.ETHIF) (T : V1_LWT.TIME) (C : V1.CLOCK) = struct
     | None -> g ()
 
   let connect ?ip ?netmask ?gateways ethif =
-    Printf.printf "IP6: Starting\n%!";
+    Log.info (fun f -> f "IP6: Starting");
     let now = C.time () in
     let state, acts = create ~now (E.mac ethif) in
     let t = {state; ethif} in

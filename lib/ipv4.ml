@@ -17,6 +17,9 @@
 open Lwt.Infix
 open Printf
 
+let src = Logs.Src.create "ipv4" ~doc:"Mirage IPv4"
+module Log = (val Logs.src_log src : Logs.LOG)
+
 module Make(Ethif: V1_LWT.ETHIF) (Arpv4 : V1_LWT.ARP) = struct
 
   (** IO operation errors *)
@@ -83,11 +86,11 @@ module Make(Ethif: V1_LWT.ETHIF) (Arpv4 : V1_LWT.ARP) = struct
             Arpv4.query t.arp hd >>= begin function
               | `Ok mac -> Lwt.return mac
               | `Timeout ->
-                printf "IP.output: arp timeout to gw %s\n%!" (Ipaddr.V4.to_string ip);
+                Log.info (fun f -> f "IP.output: arp timeout to gw %s\n%!" (Ipaddr.V4.to_string ip));
                 Lwt.fail (No_route_to_destination_address ip)
             end
           |[] ->
-            printf "IP.output: no route to %s\n%!" (Ipaddr.V4.to_string ip);
+            Log.info (fun f -> f "IP.output: no route to %a (no default gateway is configured)" Ipaddr.V4.pp_hum ip);
             Lwt.fail (No_route_to_destination_address ip)
         end
   end

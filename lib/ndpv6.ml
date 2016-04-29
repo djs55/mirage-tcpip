@@ -34,6 +34,9 @@
  http://tools.ietf.org/html/rfc3810
 *)
 
+let src = Logs.Src.create "ndpc6" ~doc:"Mirage IPv6 discovery"
+module Log = (val Logs.src_log src : Logs.LOG)
+
 module Ipaddr = Ipaddr.V6
 
 let interface_addr mac =
@@ -107,21 +110,21 @@ module AddressList = struct
           | Some (preferred_lifetime, valid_lifetime) ->
             Some (now +. preferred_lifetime, valid_lifetime), [`Sleep preferred_lifetime]
         in
-        Printf.printf "SLAAC: %s --> PREFERRED\n%!" (Ipaddr.to_string ip);
+        Log.info (fun f -> f "SLAAC: %a --> PREFERRED" Ipaddr.pp_hum ip);
         Some (ip, PREFERRED timeout), acts
       else
         let dst = Ipaddr.Prefix.network_address solicited_node_prefix ip in
         Some (ip, TENTATIVE (timeout, n+1, now +. retrans_timer)),
         [`Sleep retrans_timer; `SendNS (`Unspecified, dst, ip)]
     | ip, PREFERRED (Some (preferred_timeout, valid_lifetime)) when preferred_timeout <= now ->
-      Printf.printf "SLAAC: %s --> DEPRECATED\n%!" (Ipaddr.to_string ip);
+      Log.info (fun f -> f "SLAAC: %a --> DEPRECATED" Ipaddr.pp_hum ip);
       let valid_timeout, acts = match valid_lifetime with
         | None -> None, []
         | Some valid_lifetime -> Some (now +. valid_lifetime), [`Sleep valid_lifetime]
       in
       Some (ip, DEPRECATED valid_timeout), acts
     | ip, DEPRECATED (Some t) when t <= now ->
-      Printf.printf "SLAAC: %s --> EXPIRED\n%!" (Ipaddr.to_string ip);
+      Log.info (fun f -> f "SLAAC: %a --> EXPIRED" Ipaddr.pp_hum ip);
       None, []
     | addr ->
       Some addr, []
@@ -181,7 +184,7 @@ module AddressList = struct
     try
       match List.assoc ip al with
       | TENTATIVE _ ->
-        Printf.printf "DAD: Failed: %s\n%!" (Ipaddr.to_string ip);
+        Log.info (fun f -> f "DAD: Failed: %a" Ipaddr.pp_hum ip);
         List.remove_assoc ip al
       | _ ->
         al
@@ -246,27 +249,27 @@ module PrefixList = struct
          the prefix is not present in the host's Prefix List, silently ignore
          the option. *)
 
-    Printf.printf "ND6: Processing PREFIX option in RA\n%!";
+    Log.info (fun f -> f "ND6: Processing PREFIX option in RA");
     if Ipaddr.Prefix.link <> pfx then
       match vlft, List.mem_assoc pfx pl with
       | Some 0.0, true ->
-        Printf.printf "ND6: Removing PREFIX: pfx=%s\n%!" (Ipaddr.Prefix.to_string pfx);
+        Log.info (fun f -> f "ND6: Removing PREFIX: pfx=%a" Ipaddr.Prefix.pp_hum pfx);
         List.remove_assoc pfx pl, []
       | Some 0.0, false ->
         pl, []
       | Some dt, true ->
-        Printf.printf "ND6: Refreshing PREFIX: pfx=%s lft=%f\n%!" (Ipaddr.Prefix.to_string pfx) dt;
+        Log.info (fun f -> f "ND6: Refreshing PREFIX: pfx=%a lft=%f" Ipaddr.Prefix.pp_hum pfx dt);
         let pl = List.remove_assoc pfx pl in
         (pfx, Some (now +. dt)) :: pl, [`Sleep dt]
       | Some dt, false ->
-        Printf.printf "ND6: Received new PREFIX: pfx=%s lft=%f\n%!" (Ipaddr.Prefix.to_string pfx) dt;
-        (pfx, Some (now +. dt)) :: pl, [`Sleep dt]
+        Log.info (fun f -> f "ND6: Received new PREFIX: pfx=%a lft=%f" Ipaddr.Prefix.pp_hum pfx dt);
+        (pfx, Some (now +. dt)) :: pl, []
       | None, true ->
-        Printf.printf "ND6: Refreshing PREFIX: pfx=%s lft=inf\n%!" (Ipaddr.Prefix.to_string pfx);
+        Log.info (fun f -> f "ND6: Refreshing PREFIX: pfx=%a lft=inf" Ipaddr.Prefix.pp_hum pfx);
         let pl = List.remove_assoc pfx pl in
         (pfx, None) :: pl, []
       | None, false ->
-        Printf.printf "ND6: Received new PREFIX: pfx=%s lft=inf\n%!" (Ipaddr.Prefix.to_string pfx);
+        Log.info (fun f -> f "ND6: Received new PREFIX: pfx=%a lft=inf" Ipaddr.Prefix.pp_hum pfx);
         (pfx, None) :: pl, []
     else
       pl, []
@@ -312,29 +315,29 @@ module NeighborCache = struct
     match nb.state with
     | INCOMPLETE (t, tn) when t <= now ->
       if tn < Defaults.max_multicast_solicit then begin
-        Printf.printf "NUD: %s --> INCOMPLETE [Timeout]\n%!" (Ipaddr.to_string ip);
+        Log.info (fun f -> f "NUD: %a --> INCOMPLETE [Timeout]" Ipaddr.pp_hum ip);
         let dst = Ipaddr.Prefix.network_address solicited_node_prefix ip in
         IpMap.add ip {nb with state = INCOMPLETE (now +. retrans_timer, tn+1)} nc,
         [`Sleep retrans_timer; `SendNS (`Specified, dst, ip)]
       end else begin
-        Printf.printf "NUD: %s --> UNREACHABLE [Discarding]\n%!" (Ipaddr.to_string ip);
+        Log.info (fun f -> f "NUD: %a --> UNREACHABLE [Discarding]" Ipaddr.pp_hum ip);
         (* TODO Generate ICMP error: Destination Unreachable *)
         IpMap.remove ip nc, [`CancelQueued ip]
       end
     | REACHABLE (t, mac) when t <= now ->
-      Printf.printf "NUD: %s --> STALE\n%!" (Ipaddr.to_string ip);
+      Log.info (fun f -> f "NUD: %a --> STALE" Ipaddr.pp_hum ip);
       IpMap.add ip {nb with state = STALE mac} nc, []
     | DELAY (t, dmac) when t <= now ->
-      Printf.printf "NUD: %s --> PROBE\n%!" (Ipaddr.to_string ip);
+      Log.info (fun f -> f "NUD: %a --> PROBE" Ipaddr.pp_hum ip);
       IpMap.add ip {nb with state = PROBE (now +. retrans_timer, 0, dmac)} nc,
       [`Sleep retrans_timer; `SendNS (`Specified, ip, ip)]
     | PROBE (t, tn, dmac) when t <= now ->
       if tn < Defaults.max_unicast_solicit then begin
-        Printf.printf "NUD: %s --> PROBE [Timeout]\n%!" (Ipaddr.to_string ip);
+        Log.info (fun f -> f "NUD: %a --> PROBE [Timeout]" Ipaddr.pp_hum ip);
         IpMap.add ip {nb with state = PROBE (now +. retrans_timer, tn+1, dmac)} nc,
         [`Sleep retrans_timer; `SendNS (`Specified, ip, ip)]
       end else begin
-        Printf.printf "NUD: %s --> UNREACHABLE [Discarding]\n%!" (Ipaddr.to_string ip);
+        Log.info (fun f -> f "NUD: %a --> UNREACHABLE [Discarding]" Ipaddr.pp_hum ip);
         IpMap.remove ip nc, []
       end
     | _ ->
@@ -365,7 +368,7 @@ module NeighborCache = struct
     IpMap.add src nb nc, acts
 
   let handle_ra nc ~src new_mac =
-    Printf.printf "ND6: Processing SLLA option in RA\n%!";
+    Log.info (fun f -> f "ND6: Processing SLLA option in RA");
     let nb =
       try
         let nb = IpMap.find src nc in
@@ -388,11 +391,11 @@ module NeighborCache = struct
     let update nb =
       match nb.state, new_mac, sol, ovr with
       | INCOMPLETE _, Some new_mac, false, _ ->
-        Printf.printf "NUD: %s --> STALE\n%!" (Ipaddr.to_string tgt);
+        Log.info (fun f -> f "NUD: %a --> STALE" Ipaddr.pp_hum tgt);
         let nb = {nb with state = STALE new_mac} in
         IpMap.add tgt nb nc, [`SendQueued (tgt, new_mac)]
       | INCOMPLETE _, Some new_mac, true, _ ->
-        Printf.printf "NUD: %s --> REACHABLE\n%!" (Ipaddr.to_string tgt);
+        Log.info (fun f -> f "NUD: %a --> REACHABLE" Ipaddr.pp_hum tgt);
         let nb = {nb with state = REACHABLE (now +. reachable_time, new_mac)} in
         IpMap.add tgt nb nc, [`Sleep reachable_time; `SendQueued (tgt, new_mac)]
       | INCOMPLETE _, None, _, _ ->
@@ -404,11 +407,11 @@ module NeighborCache = struct
         in
         nc, []
       | PROBE (_, _, mac), Some new_mac, true, false when mac = new_mac ->
-        Printf.printf "NUD: %s --> REACHABLE\n%!" (Ipaddr.to_string tgt);
+        Log.info (fun f -> f "NUD: %a --> REACHABLE" Ipaddr.pp_hum tgt);
         let nb = {nb with state = REACHABLE (now +. reachable_time, new_mac)} in
         IpMap.add tgt nb nc, [`Sleep reachable_time]
       | PROBE (_, _, mac), None, true, false ->
-        Printf.printf "NUD: %s --> REACHABLE\n%!" (Ipaddr.to_string tgt);
+        Log.info (fun f -> f "NUD: %a --> REACHABLE" Ipaddr.pp_hum tgt);
         let nb = {nb with state = REACHABLE (now +. reachable_time, mac)} in
         IpMap.add tgt nb nc, [`Sleep reachable_time]
       | (REACHABLE _ | STALE _ | DELAY _ | PROBE _), None, _, _ ->
@@ -420,16 +423,16 @@ module NeighborCache = struct
         in
         nc, []
       | REACHABLE (_, mac), Some new_mac, true, false when mac <> new_mac ->
-        Printf.printf "NUD: %s --> STALE\n%!" (Ipaddr.to_string tgt);
+        Log.info (fun f -> f "NUD: %a --> STALE" Ipaddr.pp_hum tgt);
         let nb = {nb with state = STALE mac} in (* TODO check mac or new_mac *)
         IpMap.add tgt nb nc, []
       | (REACHABLE _ | STALE _ | DELAY _ | PROBE _), Some new_mac, true, true ->
-        Printf.printf "NUD: %s --> REACHABLE\n%!" (Ipaddr.to_string tgt);
+        Log.info (fun f -> f "NUD: %a --> REACHABLE" Ipaddr.pp_hum tgt);
         let nb = {nb with state = REACHABLE (now +. reachable_time, new_mac)} in
         IpMap.add tgt nb nc, [`Sleep reachable_time]
       | (REACHABLE (_, mac) | STALE mac | DELAY (_, mac) | PROBE (_, _, mac)),
         Some new_mac, false, true when mac <> new_mac ->
-        Printf.printf "NUD: %s --> STALE\n%!" (Ipaddr.to_string tgt);
+        Log.info (fun f -> f "NUD: %a --> STALE" Ipaddr.pp_hum tgt);
         let nb = {nb with state = STALE mac} in
         IpMap.add tgt nb nc, []
       | _ ->
@@ -498,16 +501,16 @@ module RouterList = struct
     | true ->
       let rl = List.remove_assoc src rl in
       if lft > 0.0 then begin
-        Printf.printf "RA: Refreshing Router: src=%s lft=%f\n%!" (Ipaddr.to_string src) lft;
-        (src, now +. lft) :: rl, [`Sleep lft]
+        Log.info (fun f -> f "RA: Refreshing Router: src=%a lft=%f" Ipaddr.pp_hum src lft);
+        (src, now +. lft) :: rl, []
       end else begin
-        Printf.printf "RA: Router Expired: src=%s\n%!" (Ipaddr.to_string src);
+        Log.info (fun f -> f "RA: Router Expired: src=%a" Ipaddr.pp_hum src);
         rl, []
       end
     | false ->
       if lft > 0.0 then begin
-        Printf.printf "RA: Adding Router: src=%s\n%!" (Ipaddr.to_string src);
-        (src, now +. lft) :: rl, [`Sleep lft]
+        Log.info (fun f -> f "RA: Adding Router: src=%a" Ipaddr.pp_hum src);
+        (src, now +. lft) :: rl, []
       end else
         rl, []
 

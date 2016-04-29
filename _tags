@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: b9afd8f7c25862ce87cac4dd55d2c26b)
+# DO NOT EDIT (digest: b87a2a8f0155f678dd8dc3fa72156a3a)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -23,6 +23,7 @@ true: annot, bin_annot
 "lib/checksum_stubs.c": pkg_cstruct
 "lib/checksum_stubs.c": pkg_io-page
 "lib/checksum_stubs.c": pkg_ipaddr
+"lib/checksum_stubs.c": pkg_logs
 "lib/checksum_stubs.c": pkg_mirage-profile
 "lib/checksum_stubs.c": pkg_mirage-types
 # Library tcpip_xen
@@ -59,6 +60,7 @@ true: annot, bin_annot
 <tcp/*.ml{,i,y}>: pkg_cstruct
 <tcp/*.ml{,i,y}>: pkg_io-page
 <tcp/*.ml{,i,y}>: pkg_ipaddr
+<tcp/*.ml{,i,y}>: pkg_logs
 <tcp/*.ml{,i,y}>: pkg_lwt
 <tcp/*.ml{,i,y}>: pkg_mirage-profile
 <tcp/*.ml{,i,y}>: pkg_mirage-types
@@ -71,6 +73,7 @@ true: annot, bin_annot
 <dhcp/*.ml{,i,y}>: pkg_cstruct
 <dhcp/*.ml{,i,y}>: pkg_io-page
 <dhcp/*.ml{,i,y}>: pkg_ipaddr
+<dhcp/*.ml{,i,y}>: pkg_logs
 <dhcp/*.ml{,i,y}>: pkg_lwt
 <dhcp/*.ml{,i,y}>: pkg_mirage-profile
 <dhcp/*.ml{,i,y}>: pkg_mirage-types
@@ -83,6 +86,7 @@ true: annot, bin_annot
 <lib/*.ml{,i,y}>: pkg_cstruct.syntax
 <lib/*.ml{,i,y}>: pkg_io-page
 <lib/*.ml{,i,y}>: pkg_ipaddr
+<lib/*.ml{,i,y}>: pkg_logs
 <lib/*.ml{,i,y}>: pkg_lwt
 <lib/*.ml{,i,y}>: pkg_mirage-profile
 <lib/*.ml{,i,y}>: pkg_mirage-types
@@ -150,6 +154,7 @@ true: annot, bin_annot
 <unix/*.ml{,i,y}>: pkg_io-page.unix
 <unix/*.ml{,i,y}>: pkg_ipaddr
 <unix/*.ml{,i,y}>: pkg_ipaddr.unix
+<unix/*.ml{,i,y}>: pkg_logs
 <unix/*.ml{,i,y}>: pkg_lwt
 <unix/*.ml{,i,y}>: pkg_lwt.unix
 <unix/*.ml{,i,y}>: pkg_mirage-profile
@@ -167,6 +172,7 @@ true: annot, bin_annot
 <lib_test/test.{native,byte}>: pkg_io-page
 <lib_test/test.{native,byte}>: pkg_io-page.unix
 <lib_test/test.{native,byte}>: pkg_ipaddr
+<lib_test/test.{native,byte}>: pkg_logs
 <lib_test/test.{native,byte}>: pkg_lwt
 <lib_test/test.{native,byte}>: pkg_lwt.unix
 <lib_test/test.{native,byte}>: pkg_mirage-clock-unix
@@ -188,6 +194,7 @@ true: annot, bin_annot
 <lib_test/*.ml{,i,y}>: pkg_io-page
 <lib_test/*.ml{,i,y}>: pkg_io-page.unix
 <lib_test/*.ml{,i,y}>: pkg_ipaddr
+<lib_test/*.ml{,i,y}>: pkg_logs
 <lib_test/*.ml{,i,y}>: pkg_lwt
 <lib_test/*.ml{,i,y}>: pkg_lwt.unix
 <lib_test/*.ml{,i,y}>: pkg_mirage-clock-unix
