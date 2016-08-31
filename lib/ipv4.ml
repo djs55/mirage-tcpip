@@ -157,7 +157,6 @@ module Make(Ethif: V1_LWT.ETHIF) (Arpv4 : V1_LWT.ARP) = struct
       | 14 -> "Host Precedence Violation"
       | 15 -> "Precedence cutoff in effect"
       | code -> Printf.sprintf "Unknown code: %d" code in
-    printf "ICMP Destination Unreachable: %s\n%!" descr;
     Lwt.return_unit
 
   let icmp_input t src dst _hdr buf =
