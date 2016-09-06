@@ -98,14 +98,16 @@ struct
     then raise (Invalid_argument (err_invalid_port port))
     else Hashtbl.replace t.tcpv4_listeners port callback
 
-  let listen_tcpv4_flow t ~on_flow_arrival =
+  let call_listener_or_handler t ~src ~dst:(ip, port) =
     (* Wrap the callback to check the registered listeners first, treating
        the [on_flow_arrival] callback as a default *)
-    t.tcpv4_on_flow_arrival <-
-      (fun ~src ~dst:(ip, port) ->
-        (if Hashtbl.mem t.tcpv4_listeners port
-         then Lwt.return (`Accept (Hashtbl.find t.tcpv4_listeners port))
-         else on_flow_arrival ~src ~dst:(ip, port)))
+    if Hashtbl.mem t.tcpv4_listeners port
+    then Lwt.return (`Accept (Hashtbl.find t.tcpv4_listeners port))
+    else t.tcpv4_on_flow_arrival ~src ~dst:(ip, port)
+
+  let listen_tcpv4_flow t ~on_flow_arrival =
+    t.tcpv4_on_flow_arrival <- on_flow_arrival
+
   let pp_opt pp f = function
     | None -> Format.pp_print_string f "None"
     | Some x -> pp f x
@@ -162,7 +164,7 @@ struct
         ~ipv4:(
           Ipv4.input
             ~tcp:(Tcpv4.input_flow t.tcpv4
-                    ~on_flow_arrival:(fun ~src ~dst -> t.tcpv4_on_flow_arrival ~src ~dst))
+                    ~on_flow_arrival:(fun ~src ~dst -> call_listener_or_handler t ~src ~dst))
             ~udp:(Udpv4.input t.udpv4
                     ~listeners:(udpv4_listeners t))
             ~default:(fun ~proto:_ ~src:_ ~dst:_ _ -> Lwt.return_unit)
