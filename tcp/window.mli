@@ -62,7 +62,7 @@ val tx_available : t -> int32
 val tx_inflight : t -> bool
 val set_tx_wnd : t -> int -> unit
 
-val alert_fast_rexmit : t -> Sequence.t -> unit
+val alert_fast_rexmit : t -> unit
 
 val rto : t -> float
 val backoff_rto : t -> unit

@@ -222,11 +222,11 @@ let tx_inflight t =
   t.tx_nxt <> t.snd_una
 
 
-let alert_fast_rexmit t _ =
+let alert_fast_rexmit t =
   if not t.fast_recovery then begin
     let inflight = Sequence.to_int32 (Sequence.sub t.tx_nxt t.snd_una) in
     let newssthresh = max (Int32.div inflight 2l) (Int32.of_int (t.tx_mss * 2)) in
-    let newcwnd = Int32.add newssthresh (Int32.of_int (t.tx_mss * 2)) in
+    let newcwnd = Int32.add inflight (Int32.of_int (t.tx_mss * 2)) in
     Log.f debug (fun fmt ->
         Log.pf fmt "ENTERING fast recovery inflight=%ld, ssthresh=%ld -> %ld, \
                     cwnd=%ld -> %ld"
