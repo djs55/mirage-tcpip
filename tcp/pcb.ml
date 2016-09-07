@@ -448,9 +448,9 @@ struct
          - send RST *)
       Tx.send_rst t id ~sequence ~ack_number ~syn ~fin
 
-  let process_syn t id ~on_flow_arrival ~pkt ~ack_number ~sequence ~options ~syn ~fin =
+  let process_syn t id ~on_flow_arrival ~src ~dst ~pkt ~ack_number ~sequence ~options ~syn ~fin =
     Log.f debug (with_stats "process-syn" t);
-    on_flow_arrival ~src:(id.WIRE.local_ip, id.WIRE.local_port) ~dst:(id.WIRE.dest_ip, id.WIRE.dest_port)
+    on_flow_arrival ~src ~dst
     >>= function
     | `Accept pushf ->
       let tx_isn = Sequence.of_int ((Random.int 65535) + 0x1AFE0000) in
@@ -492,7 +492,7 @@ struct
         (* ACK but no matching pcb and no listen - send RST *)
         Tx.send_rst t id ~sequence ~ack_number ~syn ~fin
 
-  let input_no_pcb t on_flow_arrival pkt id =
+  let input_no_pcb t on_flow_arrival src dst pkt id =
     match Tcp_wire.get_rst pkt with
     | true -> process_reset t id
     | false ->
@@ -505,7 +505,7 @@ struct
       match syn, ack with
       | true , true  -> process_synack t id ~pkt ~ack_number ~sequence
                           ~options ~syn ~fin
-      | true , false -> process_syn t id ~on_flow_arrival ~pkt ~ack_number ~sequence
+      | true , false -> process_syn t id ~on_flow_arrival ~src ~dst ~pkt ~ack_number ~sequence
                           ~options ~syn ~fin
       | false, true  -> process_ack t id ~pkt ~ack_number ~sequence ~syn ~fin
       | false, false ->
@@ -534,7 +534,7 @@ struct
         (* PCB exists, so continue the connection state machine in tcp_input *)
         (Rx.input t data)
         (* No existing PCB, so check if it is a SYN for a listening function *)
-        (input_no_pcb t on_flow_arrival data)
+        (input_no_pcb t on_flow_arrival (src, source_port) (dst, dest_port) data)
 
   let input t ~listeners ~src ~dst data =
     input_flow t ~on_flow_arrival:(fun ~src ~dst:(_, dst_port) ->
