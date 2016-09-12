@@ -169,7 +169,7 @@ module Test_iperf (B : Vnetif_backends.Backend) = struct
 
     let server_ready, server_ready_u = Lwt.wait () in
     let server_done, server_done_u = Lwt.wait () in
-    let timeout = 120.0 in
+    let timeout = 240.0 in
 
     Lwt.pick [
       (Lwt_unix.sleep timeout >>= fun () -> (* timeout *)
