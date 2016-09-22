@@ -147,6 +147,15 @@ struct
             Log.pf fmt "TX.close: skipping, state=%a" State.pp pcb.state);
         Lwt.return_unit
 
+    let xmit_empty_ack t pcb =
+      let { wnd; ack; _ } = pcb in
+      let ack_number = Window.rx_nxt wnd in
+      let flags = Segment.No_flags in
+      let options = [] in
+      let seq = Window.tx_nxt wnd in
+      ACK.transmit ack ack_number >>= fun () ->
+      xmit_pcb t.ip pcb.id ~flags ~wnd ~options ~seq []
+
     (* Thread that transmits ACKs in response to received packets,
        thus telling the other side that more can be sent, and
        also data from the user transmit queue *)
@@ -156,18 +165,29 @@ struct
       (* Transmit an empty ack when prompted by the Ack thread *)
       let rec send_empty_ack () =
         Lwt_mvar.take send_ack >>= fun _ ->
-        let ack_number = Window.rx_nxt wnd in
-        let flags = Segment.No_flags in
-        let options = [] in
-        let seq = Window.tx_nxt wnd in
-        ACK.transmit ack ack_number >>= fun () ->
-        xmit_pcb t.ip pcb.id ~flags ~wnd ~options ~seq [] >>= fun () ->
+        xmit_empty_ack t pcb >>= fun () ->
         send_empty_ack () in
       (* When something transmits an ACK, tell the delayed ACK thread *)
       let rec notify () =
         Lwt_mvar.take rx_ack >>= fun ack_number ->
         ACK.transmit ack ack_number >>= fun () ->
         notify () in
+      (* Send keep-alive ACKs as probes *)
+      let rec send_keep_alives () =
+        Time.sleep 10.
+        >>= fun () ->
+        if not(Hashtbl.mem t.channels pcb.id) then begin
+          Lwt.return_unit
+        end else begin
+          if State.state pcb.state = State.Established then begin
+            xmit_empty_ack t pcb
+            >>= fun () ->
+            send_keep_alives ()
+          end else begin
+            send_keep_alives ()
+          end
+        end in
+      let _ = send_keep_alives () in
       send_empty_ack () <&> (notify ())
   end
 
