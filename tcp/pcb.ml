@@ -410,12 +410,15 @@ struct
       Lwt.return_unit
     | None ->
       match hashtbl_find t.listens id with
-      | Some (_, (_, (pcb, th))) ->
+      | Some (_, (pushf, (pcb, th))) ->
         Hashtbl.remove t.listens id;
         Stats.decr_listen ();
         STATE.tick pcb.state State.Recv_rst;
         Lwt.cancel th;
-        Lwt.return_unit
+        (* HACK: rather than call  a callback to say the connection has been
+           cancelled, we call it with a flow where reads will return `Eof *)
+        User_buffer.Rx.add_r pcb.urx None >>= fun () ->
+        pushf pcb
       | None ->
         (* Incoming RST possibly to listen port - ignore per RFC793 pg65 *)
         Lwt.return_unit
