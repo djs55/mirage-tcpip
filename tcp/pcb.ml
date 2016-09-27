@@ -147,12 +147,13 @@ struct
             Log.pf fmt "TX.close: skipping, state=%a" State.pp pcb.state);
         Lwt.return_unit
 
-    let xmit_empty_ack t pcb =
+    let xmit_empty_ack ~keepalive t pcb =
       let { wnd; ack; _ } = pcb in
       let ack_number = Window.rx_nxt wnd in
       let flags = Segment.No_flags in
       let options = [] in
-      let seq = Window.tx_nxt wnd in
+      let seq' = Window.tx_nxt wnd in
+      let seq = if keepalive then Sequence.(sub seq' (of_int 1)) else seq' in
       ACK.transmit ack ack_number >>= fun () ->
       xmit_pcb t.ip pcb.id ~flags ~wnd ~options ~seq []
 
@@ -165,7 +166,7 @@ struct
       (* Transmit an empty ack when prompted by the Ack thread *)
       let rec send_empty_ack () =
         Lwt_mvar.take send_ack >>= fun _ ->
-        xmit_empty_ack t pcb >>= fun () ->
+        xmit_empty_ack ~keepalive:false t pcb >>= fun () ->
         send_empty_ack () in
       (* When something transmits an ACK, tell the delayed ACK thread *)
       let rec notify () =
@@ -180,7 +181,7 @@ struct
           Lwt.return_unit
         end else begin
           if State.state pcb.state = State.Established then begin
-            xmit_empty_ack t pcb
+            xmit_empty_ack ~keepalive:true t pcb
             >>= fun () ->
             send_keep_alives ()
           end else begin
