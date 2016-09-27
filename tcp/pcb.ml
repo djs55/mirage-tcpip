@@ -448,6 +448,7 @@ struct
         Lwt.cancel th;
         (* HACK: rather than call  a callback to say the connection has been
            cancelled, we call it with a flow where reads will return `Eof *)
+        Printf.fprintf "HACK: RST while in listens table\n%!";
         User_buffer.Rx.add_r pcb.urx None >>= fun () ->
         pushf pcb
       | None ->
