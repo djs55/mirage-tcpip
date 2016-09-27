@@ -69,6 +69,7 @@ struct
     state: State.t;           (* Connection state *)
     urx: User_buffer.Rx.t;    (* App rx buffer *)
     utx: UTX.t;               (* App tx buffer *)
+    mutable last_recv_time: float; (* Time we received last packet from the peer *)
   }
   type action = [
     | `Reject
@@ -181,6 +182,7 @@ struct
           Lwt.return_unit
         end else begin
           if State.state pcb.state = State.Established then begin
+            let age = Clock.time () -. pcb.last_recv_time in
             xmit_empty_ack ~keepalive:true t pcb
             >>= fun () ->
             send_keep_alives ()
@@ -210,6 +212,7 @@ struct
         RXS.segment ~sequence ~fin ~syn ~rst ~ack ~ack_number ~window ~data
       in
       let { rxq; _ } = pcb in
+      pcb.last_recv_time <- Clock.time ();
       (* Coalesce any outstanding segments and retrieve ready segments *)
       RXS.input rxq seg
 
@@ -360,8 +363,9 @@ struct
     let rxq = RXS.create ~rx_data ~wnd ~state ~tx_ack in
     (* Set up ACK module *)
     let ack = ACK.t ~send_ack ~last:(Sequence.incr rx_isn) in
+    let last_recv_time = Clock.time () in
     (* Construct basic PCB in Syn_received state *)
-    let pcb = { state; rxq; txq; wnd; id; ack; urx; utx } in
+    let pcb = { state; rxq; txq; wnd; id; ack; urx; utx; last_recv_time } in
     (* Compose the overall thread from the various tx/rx threads
        and the main listener function *)
     let tx_thread = (Tx.thread t pcb ~send_ack ~rx_ack) in
