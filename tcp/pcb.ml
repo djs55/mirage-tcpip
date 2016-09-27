@@ -17,6 +17,14 @@
 
 open Lwt.Infix
 
+(* Helper function to apply function with contents of hashtbl, or
+   take default action *)
+let with_hashtbl h k fn default =
+  try fn (Hashtbl.find h k) with Not_found -> default k
+
+let hashtbl_find h k =
+  try Some (Hashtbl.find h k) with Not_found -> None
+
 type error = [`Bad_state of State.tcpstate]
 
 type 'a result = [`Ok of 'a | `Error of error]
@@ -178,18 +186,24 @@ struct
       let rec send_keep_alives () =
         Time.sleep 10.
         >>= fun () ->
-        if not(Hashtbl.mem t.channels pcb.id) then begin
+        match hashtbl_find t.channels pcb.id with
+        | None ->
           Lwt.return_unit
-        end else begin
+        | Some (_, th) ->
           if State.state pcb.state = State.Established then begin
             let age = Clock.time () -. pcb.last_recv_time in
-            xmit_empty_ack ~keepalive:true t pcb
-            >>= fun () ->
-            send_keep_alives ()
+            if age > 120. then begin
+              Printf.fprintf stderr "Expiring old connection (age %f)\n%!" age;
+              User_buffer.Rx.add_r pcb.urx None >>= fun () ->
+              close pcb
+            end else begin
+              xmit_empty_ack ~keepalive:true t pcb
+              >>= fun () ->
+              send_keep_alives ()
+            end
           end else begin
             send_keep_alives ()
-          end
-        end in
+          end in
       let _ = send_keep_alives () in
       send_empty_ack () <&> (notify ())
   end
@@ -270,14 +284,6 @@ struct
       tx_window_t ()
 
   end
-
-  (* Helper function to apply function with contents of hashtbl, or
-     take default action *)
-  let with_hashtbl h k fn default =
-    try fn (Hashtbl.find h k) with Not_found -> default k
-
-  let hashtbl_find h k =
-    try Some (Hashtbl.find h k) with Not_found -> None
 
   let clearpcb t id tx_isn =
     (* TODO: add more info to log msgs *)
