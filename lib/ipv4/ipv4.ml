@@ -188,8 +188,8 @@ module Make(Ethif: V1_LWT.ETHIF) (Arpv4 : V1_LWT.ARP) = struct
 
   let get_ip_gateways { gateways; _ } = gateways
 
-  let pseudoheader t ~dst ~proto len =
-    Ipv4_packet.Marshal.pseudoheader ~src:t.ip ~dst ~proto len
+  let pseudoheader t ?(src=t.ip) ~dst ~proto len =
+    Ipv4_packet.Marshal.pseudoheader ~src ~dst ~proto len
 
   let checksum frame bufs =
     let packet = Cstruct.shift frame Ethif_wire.sizeof_ethernet in

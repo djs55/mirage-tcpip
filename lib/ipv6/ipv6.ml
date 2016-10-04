@@ -108,9 +108,11 @@ module Make (E : V1_LWT.ETHIF) (T : V1_LWT.TIME) (C : V1.MCLOCK) = struct
     t.ctx <- ctx;
     Lwt.return_unit
 
-  let pseudoheader t ~dst ~proto len =
+  let pseudoheader t ?src:src' ~dst ~proto len =
     let ph = Cstruct.create (16 + 16 + 8) in
-    let src = src t ~dst in
+    let src = match src' with
+      | Some x -> x
+      | None -> src t ~dst in
     Ndpv6.ipaddr_to_cstruct_raw src ph 0;
     Ndpv6.ipaddr_to_cstruct_raw dst ph 16;
     Cstruct.BE.set_uint32 ph 32 (Int32.of_int len);
