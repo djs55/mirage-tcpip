@@ -65,13 +65,16 @@ let id { interface; _ } =
   let t, _ = Lwt.task () in
   t
 
-let write ?src_port ~dst ~dst_port t buf =
+let write ?src ?src_port ~dst ~dst_port t buf =
   let open Lwt_unix in
   let fd =
     match src_port with
     | None -> get_udpv4_listening_fd t 0
     | Some port -> get_udpv4_listening_fd t port
   in
+  ( match src with
+    | None -> ()
+    | Some _ -> raise (Failure "Udpv4_socket.write: changing the source IP address is not implemented") );
   Lwt_cstruct.sendto fd buf [] (ADDR_INET ((Ipaddr_unix.V4.to_inet_addr dst), dst_port))
   >>= fun _ ->
   return_unit
