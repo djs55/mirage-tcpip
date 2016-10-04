@@ -101,7 +101,7 @@ module Make(Ethif: V1_LWT.ETHIF) (Arpv4 : V1_LWT.ARP) = struct
     let checksum = Tcpip_checksum.ones_complement buf in
     set_ipv4_csum buf checksum
 
-  let allocate_frame t ~(dst:ipaddr) ~(proto : [`ICMP | `TCP | `UDP]) : (buffer * int) =
+  let allocate_frame t ?(src=t.ip) ~(dst:ipaddr) ~(proto : [`ICMP | `TCP | `UDP]) () : (buffer * int) =
     let open Ipv4_wire in
     let ethernet_frame = Io_page.to_cstruct (Io_page.get 1) in
     let len = Ethif_wire.sizeof_ethernet + sizeof_ipv4 in
@@ -116,7 +116,7 @@ module Make(Ethif: V1_LWT.ETHIF) (Arpv4 : V1_LWT.ARP) = struct
       let buf = Cstruct.shift ethernet_frame Ethif_wire.sizeof_ethernet in
       (* TODO: why 38 for TTL? *)
       let ipv4_header = Ipv4_packet.({options = Cstruct.create 0;
-                                      src = t.ip; dst; ttl = 38; 
+                                      src; dst; ttl = 38;
                                       proto = Ipv4_packet.Marshal.protocol_to_int proto; }) in
       (* set the payload to 0, since we don't know what it'll be yet *)
       (* the caller needs to then use [writev] or [write] to output the buffer;

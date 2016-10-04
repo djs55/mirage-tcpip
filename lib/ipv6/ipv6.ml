@@ -48,8 +48,8 @@ module Make (E : V1_LWT.ETHIF) (T : V1_LWT.TIME) (C : V1.MCLOCK) = struct
     in
     loop ()
 
-  let allocate_frame t ~dst ~proto =
-    Ndpv6.allocate_frame t.ctx dst proto
+  let allocate_frame t ?src ~dst ~proto () =
+    Ndpv6.allocate_frame t.ctx ?src dst proto
 
   let writev t frame bufs =
     let now = C.elapsed_ns t.clock in

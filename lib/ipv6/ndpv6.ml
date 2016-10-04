@@ -1153,9 +1153,11 @@ let add_ip ~now ctx ip =
 let get_ip ctx =
   AddressList.to_list ctx.address_list
 
-let allocate_frame ctx dst proto =
+let allocate_frame ctx ?src dst proto =
   let proto = Ipv6_wire.protocol_to_int proto in
-  let src = AddressList.select_source ctx.address_list ~dst in
+  let src = match src with
+    | Some x -> x
+    | None -> AddressList.select_source ctx.address_list ~dst in
   Allocate.frame ~mac:ctx.mac ~src ~hlim:ctx.cur_hop_limit ~dst ~proto
 
 let select_source ctx dst =

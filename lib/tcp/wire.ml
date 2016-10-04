@@ -52,7 +52,7 @@ module Make (Ip:V1_LWT.IP) = struct
         src_port; dst_port;
       } in
     (* Make a TCP/IP header frame *)
-    let frame, header_len = Ip.allocate_frame ip ~dst ~proto:`TCP in
+    let frame, header_len = Ip.allocate_frame ip ~dst ~proto:`TCP () in
     (* Shift this out by the combined ethernet + IP header sizes *)
     let tcp_buf = Cstruct.shift frame header_len in
     let pseudoheader = Ip.pseudoheader ip ~dst ~proto:`TCP

@@ -25,8 +25,8 @@ module Make(IP : V1_LWT.IPV4) = struct
     | `Routing -> Format.fprintf formatter "%s" "routing"
     | `Unknown -> Format.fprintf formatter "%s" "unknown!"
 
-  let writev t ~dst bufs = 
-    let frame, header_len = IP.allocate_frame t.ip ~dst ~proto:`ICMP in
+  let writev t ~dst bufs =
+    let frame, header_len = IP.allocate_frame t.ip ~dst ~proto:`ICMP () in
     let frame = Cstruct.set_len frame header_len in
     IP.writev t.ip frame bufs
 

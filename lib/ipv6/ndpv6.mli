@@ -42,8 +42,8 @@ val add_ip : now:time -> context -> ipaddr -> context * buffer list list
 val get_ip : context -> ipaddr list
 (** [get_ip ctx] returns the list of local ips. *)
 
-val allocate_frame : context -> ipaddr -> [`ICMP | `TCP | `UDP] -> buffer * int
-(** [allocate_frame ctx ip proto] returns a pair [buf, len] where [buf] is a new
+val allocate_frame : context -> ?src:ipaddr -> ipaddr -> [`ICMP | `TCP | `UDP] -> buffer * int
+(** [allocate_frame ctx ?src ip proto] returns a pair [buf, len] where [buf] is a new
     ethernet frame containing an ipv6 header of length [len]. *)
 
 val select_source : context -> ipaddr -> ipaddr
