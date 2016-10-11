@@ -183,10 +183,9 @@ struct
     let udpv4_listeners = Hashtbl.create 7 in
     let tcpv4_listeners = Hashtbl.create 7 in
     let tcpv4_on_flow_arrival ~src ~dst = Lwt.return `Reject in
-    let t = { id; c; mode; netif; ethif; arpv4; ipv4; icmpv4; tcpv4; udpv4;
+    let t = { id; mode; netif; ethif; arpv4; ipv4; icmpv4; tcpv4; udpv4;
               udpv4_listeners; tcpv4_listeners; tcpv4_on_flow_arrival } in
-    Console.log_s t.c "Manager: configuring"
-    >>= fun () ->
+    Log.info (fun f -> f "Manager: configuring");
     let _ = listen t in
     configure t t.mode
     >>= fun () ->
