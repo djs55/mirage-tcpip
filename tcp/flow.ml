@@ -34,11 +34,6 @@ module Make(IP:Wire.IP)(TM:V1_LWT.TIME)(C:V1.CLOCK)(R:V1.RANDOM) = struct
   type ipinput = src:ipaddr -> dst:ipaddr -> buffer -> unit io
   type t = Pcb.t
   type callback = flow -> unit Lwt.t
-  type action = [
-    | `Reject
-    | `Accept of callback
-  ]
-  type on_flow_arrival_callback = src:(ipaddr * int) -> dst:(ipaddr * int) -> action io
 
   type error = [
     | `Unknown of string
@@ -76,7 +71,6 @@ module Make(IP:Wire.IP)(TM:V1_LWT.TIME)(C:V1.CLOCK)(R:V1.RANDOM) = struct
   let id = Pcb.ip
   let get_dest = Pcb.get_dest
   let close t = Pcb.close t
-
   let input = Pcb.input
 
   let read t =

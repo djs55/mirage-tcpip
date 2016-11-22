@@ -57,13 +57,6 @@ struct
   module IPV4  = Ipv4
   module Dhcp = Dhcp_clientv4.Make(Time)(Random)(Udpv4)
 
-  type tcpv4_action = [
-    | `Reject
-    | `Accept of (Tcpv4.flow -> unit Lwt.t)
-  ]
-
-  type tcpv4_on_flow_arrival_callback = src:(ipv4addr * int) -> dst:(ipv4addr * int) -> tcpv4_action Lwt.t
-
   type t = {
     id    : id;
     mode  : mode;
@@ -75,7 +68,7 @@ struct
     udpv4 : Udpv4.t;
     tcpv4 : Tcpv4.t;
     udpv4_listeners: (int, Udpv4.callback) Hashtbl.t;
-    mutable tcpv4_on_flow_arrival: tcpv4_on_flow_arrival_callback;
+    tcpv4_listeners: (int, (Tcpv4.flow -> unit Lwt.t)) Hashtbl.t;
   }
 
   type error = [
@@ -94,7 +87,11 @@ struct
     then raise (Invalid_argument (err_invalid_port port))
     else Hashtbl.replace t.udpv4_listeners port callback
 
-  let listen_tcpv4 t ~on_flow_arrival = t.tcpv4_on_flow_arrival <- on_flow_arrival
+
+  let listen_tcpv4 t ~port callback =
+    if port < 0 || port > 65535
+    then raise (Invalid_argument (err_invalid_port port))
+    else Hashtbl.replace t.tcpv4_listeners port callback
 
   let configure_dhcp t info =
     Ipv4.set_ip t.ipv4 info.Dhcp.ip_addr
@@ -138,6 +135,10 @@ struct
     try Some (Hashtbl.find t.udpv4_listeners dst_port)
     with Not_found -> None
 
+  let tcpv4_listeners t dst_port =
+    try Some (Hashtbl.find t.tcpv4_listeners dst_port)
+    with Not_found -> None
+
   let listen t =
     Netif.listen t.netif (
       Ethif.input
@@ -145,7 +146,7 @@ struct
         ~ipv4:(
           Ipv4.input
             ~tcp:(Tcpv4.input t.tcpv4
-                    ~on_flow_arrival:t.tcpv4_on_flow_arrival)
+                    ~listeners:(tcpv4_listeners t))
             ~udp:(Udpv4.input t.udpv4
                     ~listeners:(udpv4_listeners t))
             ~default:(fun ~proto ~src ~dst buf -> 
@@ -161,9 +162,8 @@ struct
     Log.info (fun f -> f "Manager: connect");
     let udpv4_listeners = Hashtbl.create 7 in
     let tcpv4_listeners = Hashtbl.create 7 in
-    let tcpv4_on_flow_arrival ~src ~dst = Lwt.return `Reject in
-    let t = { id; mode; netif; ethif; arpv4; ipv4; icmpv4; tcpv4; udpv4;
-              udpv4_listeners; tcpv4_listeners; tcpv4_on_flow_arrival } in
+    let t = { id; c; mode; netif; ethif; arpv4; ipv4; tcpv4; udpv4;
+              udpv4_listeners; tcpv4_listeners } in
     Log.info (fun f -> f "Manager: configuring");
     let _ = listen t in
     configure t t.mode

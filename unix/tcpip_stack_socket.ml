@@ -62,12 +62,6 @@ module Make(Console:V1_LWT.CONSOLE) = struct
       `Unknown of string
   ]
 
-  type tcpv4_action = [
-    | `Reject
-    | `Accept of Tcpv4.flow -> unit Lwt.t
-  ]
-  type tcpv4_on_flow_arrival_callback = src:(ipv4addr * int) -> dst:(ipv4addr * int) -> tcpv4_action io
-
   let id { id; _ } = id
   let udpv4 { udpv4; _ } = udpv4
   let tcpv4 { tcpv4; _ } = tcpv4
@@ -107,8 +101,7 @@ module Make(Console:V1_LWT.CONSOLE) = struct
       (* FIXME: we should not ignore the result *)
       ignore_result (loop ())
 
-  let listen_tcpv4 _t ~on_flow_arrival =
-  (*)
+  let listen_tcpv4 _t ~port callback =
     if port < 0 || port > 65535 then
       raise (Invalid_argument (err_invalid_port port))
     else
@@ -135,7 +128,6 @@ module Make(Console:V1_LWT.CONSOLE) = struct
       in
       (* FIXME: we should not ignore the result *)
       ignore_result (loop ())
-      *) failwith "there is no socket api for on_flow_arrival"
 
   let listen _t =
     let t, _ = Lwt.task () in
