@@ -155,16 +155,13 @@ struct
     with Not_found -> None
 
   let listen t =
-    (* NB: this function will be called more than once, including at initialisation
-       time. Be careful not to capture the state of `t` before the program can
-       customise it, see `tcpv4_on_flow_arrival` below. *)
     Netif.listen t.netif (
       Ethif.input
         ~arpv4:(Arpv4.input t.arpv4)
         ~ipv4:(
           Ipv4.input
             ~tcp:(Tcpv4.input t.tcpv4
-                    ~on_flow_arrival:(fun ~src ~dst -> t.tcpv4_on_flow_arrival ~src ~dst))
+                    ~on_flow_arrival:t.tcpv4_on_flow_arrival)
             ~udp:(Udpv4.input t.udpv4
                     ~listeners:(udpv4_listeners t))
             ~default:(fun ~proto ~src ~dst buf -> 
