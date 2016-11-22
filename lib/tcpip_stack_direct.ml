@@ -93,6 +93,10 @@ struct
     then raise (Invalid_argument (err_invalid_port port))
     else Hashtbl.replace t.tcpv4_listeners port callback
 
+  let pp_opt pp f = function
+    | None -> Format.pp_print_string f "None"
+    | Some x -> pp f x
+
   let configure_dhcp t info =
     Ipv4.set_ip t.ipv4 info.Dhcp.ip_addr
     >>= fun () ->
@@ -162,7 +166,7 @@ struct
     Log.info (fun f -> f "Manager: connect");
     let udpv4_listeners = Hashtbl.create 7 in
     let tcpv4_listeners = Hashtbl.create 7 in
-    let t = { id; c; mode; netif; ethif; arpv4; ipv4; tcpv4; udpv4;
+    let t = { id; mode; netif; ethif; arpv4; icmpv4; ipv4; tcpv4; udpv4;
               udpv4_listeners; tcpv4_listeners } in
     Log.info (fun f -> f "Manager: configuring");
     let _ = listen t in
