@@ -122,12 +122,7 @@ let close fd =
   Lwt_unix.close fd
 
 (* FIXME: how does this work at all ?? *)
-let input _t ~listeners:_ =
-  (* TODO terminate when signalled by disconnect *)
-  let t, _ = Lwt.task () in
-  t
-
-let input_flow _t ~on_flow_arrival:_ =
+let input _t ~on_flow_arrival:_ =
   (* TODO terminate when signalled by disconnect *)
   let t, _ = Lwt.task () in
   t

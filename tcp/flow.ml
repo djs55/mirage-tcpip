@@ -78,7 +78,6 @@ module Make(IP:Wire.IP)(TM:V1_LWT.TIME)(C:V1.CLOCK)(R:V1.RANDOM) = struct
   let close t = Pcb.close t
 
   let input = Pcb.input
-  let input_flow = Pcb.input_flow
 
   let read t =
     (* TODO better error interface in Pcb *)

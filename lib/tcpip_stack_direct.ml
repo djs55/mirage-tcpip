@@ -163,7 +163,7 @@ struct
         ~arpv4:(Arpv4.input t.arpv4)
         ~ipv4:(
           Ipv4.input
-            ~tcp:(Tcpv4.input_flow t.tcpv4
+            ~tcp:(Tcpv4.input t.tcpv4
                     ~on_flow_arrival:(fun ~src ~dst -> t.tcpv4_on_flow_arrival ~src ~dst))
             ~udp:(Udpv4.input t.udpv4
                     ~listeners:(udpv4_listeners t))

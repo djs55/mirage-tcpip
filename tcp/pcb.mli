@@ -42,11 +42,7 @@ module Make(Ip:Wire.IP)(Time:V1_LWT.TIME)(Clock:V1.CLOCK)(Random:V1.RANDOM) : si
 
   type on_flow_arrival_callback = src:(Ip.ipaddr * int) -> dst:(Ip.ipaddr * int) -> action Lwt.t
 
-  val input: t -> listeners:(int -> (pcb -> unit Lwt.t) option)
-    -> src:Ip.ipaddr -> dst:Ip.ipaddr -> Cstruct.t -> unit Lwt.t
-
-  val input_flow: t -> on_flow_arrival:on_flow_arrival_callback
-    -> src:Ip.ipaddr -> dst:Ip.ipaddr -> Cstruct.t -> unit Lwt.t
+  val input: t -> on_flow_arrival:on_flow_arrival_callback -> src:Ip.ipaddr -> dst:Ip.ipaddr -> Cstruct.t -> unit Lwt.t
 
   val connect: t -> dest_ip:Ip.ipaddr -> dest_port:int -> connection_result Lwt.t
 

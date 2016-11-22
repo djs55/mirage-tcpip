@@ -537,7 +537,7 @@ struct
         Lwt.return_unit
 
   (* Main input function for TCP packets *)
-  let input_flow t ~on_flow_arrival ~src ~dst data =
+  let input t ~on_flow_arrival ~src ~dst data =
     let (_: on_flow_arrival_callback) = on_flow_arrival in
     match verify_checksum src dst data with
     | false ->
@@ -558,13 +558,6 @@ struct
         (Rx.input t data)
         (* No existing PCB, so check if it is a SYN for a listening function *)
         (input_no_pcb t on_flow_arrival (src, source_port) (dst, dest_port) data)
-
-  let input t ~listeners ~src ~dst data =
-    input_flow t ~on_flow_arrival:(fun ~src ~dst:(_, dst_port) ->
-      match listeners dst_port with
-      | None -> Lwt.return `Reject
-      | Some flow_cb -> Lwt.return (`Accept flow_cb)
-    ) ~src ~dst data
 
   (* Blocking read on a PCB *)
   let read pcb =
