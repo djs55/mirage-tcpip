@@ -107,7 +107,8 @@ module Make(Console:V1_LWT.CONSOLE) = struct
       (* FIXME: we should not ignore the result *)
       ignore_result (loop ())
 
-  let listen_tcpv4 _t ~port callback =
+  let listen_tcpv4 _t ~on_flow_arrival =
+  (*)
     if port < 0 || port > 65535 then
       raise (Invalid_argument (err_invalid_port port))
     else
@@ -134,9 +135,7 @@ module Make(Console:V1_LWT.CONSOLE) = struct
       in
       (* FIXME: we should not ignore the result *)
       ignore_result (loop ())
-
-  let listen_tcpv4_flow _t ~on_flow_arrival =
-    failwith "there is no socket api for on_flow_arrival"
+      *) failwith "there is no socket api for on_flow_arrival"
 
   let listen _t =
     let t, _ = Lwt.task () in
