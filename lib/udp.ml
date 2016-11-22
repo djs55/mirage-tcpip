@@ -55,15 +55,12 @@ module Make(Ip: V1_LWT.IP) = struct
         fn ~src ~dst ~src_port data
     end
 
-  let writev ?source_ip ?source_port ~dest_ip ~dest_port t bufs =
-    let source_ip = match source_ip with
-      | None   -> Ip.get_source t.ip ~dst:dest_ip
-      | Some x -> x in
+  let writev ?source_port ~dest_ip ~dest_port t bufs =
     begin match source_port with
       | None   -> Lwt.fail (Failure "TODO; random source port")
       | Some p -> Lwt.return p
     end >>= fun source_port ->
-    let frame, header_len = Ip.allocate t.ip ~src:source_ip ~dst:dest_ip ~proto:`UDP in
+    let frame, header_len = Ip.allocate_frame t.ip ~dst:dest_ip ~proto:`UDP in
     let frame = Cstruct.set_len frame (header_len + Wire_structs.sizeof_udp) in
     let udp_buf = Cstruct.shift frame header_len in
     Wire_structs.set_udp_source_port udp_buf source_port;
