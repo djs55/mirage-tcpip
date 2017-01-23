@@ -192,5 +192,5 @@ module Make(Ethif: V1_LWT.ETHIF) (Arpv4 : V1_LWT.ARP) = struct
   type uipaddr = Ipaddr.t
   let to_uipaddr ip = Ipaddr.V4 ip
   let of_uipaddr = Ipaddr.to_v4
-
+  let mtu t = Ethif.mtu t.ethif - Wire_structs.Ipv4_wire.sizeof_ipv4
 end
