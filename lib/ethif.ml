@@ -17,6 +17,8 @@
  *)
 open Lwt.Infix
 
+let default_mtu = 1500
+
 module Make(Netif : V1_LWT.NETWORK) = struct
 
   type 'a io = 'a Lwt.t
@@ -32,10 +34,12 @@ module Make(Netif : V1_LWT.NETWORK) = struct
 
   type t = {
     netif: Netif.t;
+    mtu: int;
   }
 
   let id t = t.netif
   let mac t = Netif.mac t.netif
+  let mtu t = t.mtu
 
   let input ~arpv4 ~ipv4 ~ipv6 t frame =
     MProf.Trace.label "ethif.input";
@@ -61,9 +65,9 @@ module Make(Netif : V1_LWT.NETWORK) = struct
     MProf.Trace.label "ethif.writev";
     Netif.writev t.netif bufs
 
-  let connect netif =
+  let connect ?(mtu = default_mtu) netif =
     MProf.Trace.label "ethif.connect";
-    Lwt.return (`Ok { netif })
+    Lwt.return (`Ok { netif; mtu })
 
   let disconnect _ = Lwt.return_unit
 end
