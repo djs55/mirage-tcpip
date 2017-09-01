@@ -53,3 +53,17 @@ val next: configuration:configuration -> ns:int64 -> state -> action * state
 (** [next ~configuration ~ns state] returns the action we should take given
     that we last received a packet [ns] nanoseconds ago and the new state
     of the connection *)
+
+module Make(T:Mirage_time_lwt.S)(Clock:Mirage_clock.MCLOCK): sig
+  type t
+  (** A keep-alive timer *)
+
+  val create: configuration -> ([ `SendProbe | `Close] -> unit Lwt.t) -> Clock.t -> t
+  (** [create configuration f clock] returns a keep-alive timer which will call
+      [f] in future depending on both the [configuration] and any calls to
+      [refresh] *)
+
+  val refresh: t -> unit
+  (** [refresh t] marks the connection [t] as alive. This should be called
+      when packets are received. *)
+end

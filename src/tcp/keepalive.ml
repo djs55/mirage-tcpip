@@ -71,3 +71,45 @@ let next ~configuration ~ns state =
         `Wait (Int64.sub interval_ns since_last_probe_ns), state
       end
   end
+
+  module Make(T:Mirage_time_lwt.S)(Clock:Mirage_clock.MCLOCK) = struct
+    type t = {
+      configuration: configuration;
+      callback: ([ `SendProbe | `Close ] -> unit Lwt.t);
+      clock: Clock.t;
+      mutable state: state;
+      mutable timer: unit Lwt.t;
+      mutable start: int64;
+    }
+    (** A keep-alive timer *)
+
+    let rec restart t =
+      let open Lwt.Infix in
+      let ns = Int64.sub (Clock.elapsed_ns t.clock) t.start in
+      match next ~configuration:t.configuration ~ns t.state with
+      | `Wait ns, state ->
+        T.sleep_ns ns >>= fun () ->
+        t.state <- state;
+        restart t
+      | `SendProbe, state ->
+        t.callback `SendProbe >>= fun () ->
+        t.state <- state;
+        restart t
+      | `Close, _ ->
+        t.callback `Close >>= fun () ->
+        Lwt.return_unit
+
+    let create configuration callback clock =
+      let state = alive in
+      let timer = Lwt.return_unit in
+      let start = Clock.elapsed_ns clock in
+      let t = { configuration; callback; clock; state; timer; start } in
+      t.timer <- restart t;
+      t
+
+    let refresh t =
+      t.start <- Clock.elapsed_ns t.clock;
+      t.state <- alive;
+      Lwt.cancel t.timer;
+      t.timer <- restart t
+  end

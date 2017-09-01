@@ -30,6 +30,7 @@ struct
   module UTX = User_buffer.Tx(Time)(Clock)
   module WIRE = Wire.Make(Ip)
   module STATE = State.Make(Time)
+  module KEEPALIVE = Keepalive.Make(Time)(Clock)
 
   type error = [ Mirage_protocols.Tcp.error | WIRE.error]
 
@@ -53,6 +54,7 @@ struct
     state: State.t;           (* Connection state *)
     urx: User_buffer.Rx.t;    (* App rx buffer *)
     utx: UTX.t;               (* App tx buffer *)
+    keepalive: KEEPALIVE.t option; (* Optional TCP keepalive state *)
   }
 
   type connection = pcb * unit Lwt.t
@@ -158,6 +160,11 @@ struct
     (* Process an incoming TCP packet that has an active PCB *)
     let input _t parsed (pcb,_) =
       let { rxq; _ } = pcb in
+      (* The connection is alive! *)
+      begin match pcb.keepalive with
+      | None -> ()
+      | Some keepalive -> KEEPALIVE.refresh keepalive
+      end;
       (* Coalesce any outstanding segments and retrieve ready segments *)
       RXS.input rxq parsed
 
@@ -265,7 +272,7 @@ struct
       rx_wnd: int;
       rx_wnd_scaleoffer: int }
 
-  let new_pcb t params id =
+  let new_pcb ?keepalive t params id =
     let mtu_mss = Ip.mtu t.ip - Tcp_wire.sizeof_tcp in
     let { tx_wnd; sequence; options; tx_isn; rx_wnd; rx_wnd_scaleoffer } =
       params
@@ -310,8 +317,19 @@ struct
     let rxq = RXS.create ~rx_data ~wnd ~state ~tx_ack in
     (* Set up ACK module *)
     let ack = ACK.t ~send_ack ~last:(Sequence.incr rx_isn) in
+    (* If a keepalive configuration is provided, then set up the state *)
+    let keepalive_cb = function
+      | `SendProbe ->
+        Log.warn (fun f -> f "I should send a keep alive packet");
+        Lwt.return_unit
+      | `Close ->
+        Log.warn (fun f -> f "I should close the connection");
+        Lwt.return_unit in
+    let keepalive = match keepalive with
+      | Some configuration -> Some (KEEPALIVE.create configuration keepalive_cb t.clock)
+      | None -> None in
     (* Construct basic PCB in Syn_received state *)
-    let pcb = { state; rxq; txq; wnd; id; ack; urx; utx } in
+    let pcb = { state; rxq; txq; wnd; id; ack; urx; utx; keepalive } in
     (* Compose the overall thread from the various tx/rx threads
        and the main listener function *)
     let tx_thread = (Tx.thread t pcb ~send_ack ~rx_ack) in
