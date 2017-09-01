@@ -30,6 +30,7 @@ struct
   module UTX = User_buffer.Tx(Time)(Clock)
   module WIRE = Wire.Make(Ip)
   module STATE = State.Make(Time)
+  module KEEPALIVE = Keepalive.Make(Time)(Clock)
 
   type error = [ Mirage_protocols.Tcp.error | WIRE.error]
 
@@ -53,6 +54,7 @@ struct
     state: State.t;           (* Connection state *)
     urx: User_buffer.Rx.t;    (* App rx buffer *)
     utx: UTX.t;               (* App tx buffer *)
+    mutable keepalive: KEEPALIVE.t option; (* Optional TCP keepalive state *)
   }
 
   type connection = pcb * unit Lwt.t
@@ -158,6 +160,11 @@ struct
     (* Process an incoming TCP packet that has an active PCB *)
     let input _t parsed (pcb,_) =
       let { rxq; _ } = pcb in
+      (* The connection is alive! *)
+      begin match pcb.keepalive with
+      | None -> ()
+      | Some keepalive -> KEEPALIVE.refresh keepalive
+      end;
       (* Coalesce any outstanding segments and retrieve ready segments *)
       RXS.input rxq parsed
 
@@ -310,8 +317,9 @@ struct
     let rxq = RXS.create ~rx_data ~wnd ~state ~tx_ack in
     (* Set up ACK module *)
     let ack = ACK.t ~send_ack ~last:(Sequence.succ rx_isn) in
+    let keepalive = None in
     (* Construct basic PCB in Syn_received state *)
-    let pcb = { state; rxq; txq; wnd; id; ack; urx; utx } in
+    let pcb = { state; rxq; txq; wnd; id; ack; urx; utx; keepalive } in
     (* Compose the overall thread from the various tx/rx threads
        and the main listener function *)
     let tx_thread = (Tx.thread t pcb ~send_ack ~rx_ack) in
@@ -514,6 +522,51 @@ struct
         (Rx.input t RXS.({header = pkt; payload}))
         (* No existing PCB, so check if it is a SYN for a listening function *)
         (input_no_pcb t listeners (pkt, payload))
+
+  let keepalive_cb t pcb = function
+  | `SendProbe ->
+    Log.debug (fun f -> f "Sending keepalive on connection %a" WIRE.pp pcb.id);
+    (* From https://tools.ietf.org/html/rfc1122#page-101
+
+    > 4.2.3.6  TCP Keep-Alives
+    ...
+    > Such a segment generally contains SEG.SEQ =
+    > SND.NXT-1 and may or may not contain one garbage octet
+    > of data.  Note that on a quiet connection SND.NXT =
+    > RCV.NXT, so that this SEG.SEQ will be outside the
+    > window.  Therefore, the probe causes the receiver to
+    > return an acknowledgment segment, confirming that the
+    > connection is still live.  If the peer has dropped the
+    > connection due to a network partition or a crash, it
+    > will respond with a RST instead of an acknowledgment
+    > segment.
+    *)
+    let flags = Segment.No_flags in
+    let wnd = pcb.wnd in
+    let options = [] in
+    let seq = Sequence.pred @@ Window.tx_nxt wnd in
+    (* if the sending fails this behaves like a packet drop which will cause
+       the connection to be eventually closed after the probes are sent *)
+    Tx.xmit_pcb t.ip pcb.id ~flags ~wnd ~options ~seq (Cstruct.create 0) >>= fun _ ->
+    Lwt.return_unit
+  | `Close ->
+    Log.debug (fun f -> f "Keepalive timer expired, resetting connection %a" WIRE.pp pcb.id);
+    STATE.tick pcb.state State.Recv_rst;
+    (* Close the read direction *)
+    User_buffer.Rx.add_r pcb.urx None >>= fun () ->
+    Lwt.return_unit
+
+  let disable_keepalive pcb =
+    match pcb.keepalive with
+    | None -> ()
+    | Some keepalive ->
+      KEEPALIVE.cancel keepalive;
+      pcb.keepalive <- None
+
+  let enable_keepalive ~t ~flow:pcb ~time ~interval ~probes =
+    disable_keepalive pcb;
+    let configuration = Keepalive.({time; interval; probes}) in
+    pcb.keepalive <- Some (KEEPALIVE.create configuration (keepalive_cb t pcb) t.clock)
 
   (* Blocking read on a PCB *)
   let read pcb =

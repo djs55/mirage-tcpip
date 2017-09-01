@@ -62,5 +62,11 @@ module Make(Ip:Mirage_protocols_lwt.IP)(Time:Mirage_time_lwt.S)(Clock:Mirage_clo
   val write_nodelay: pcb -> Cstruct.t -> (unit, write_error) result Lwt.t
   val writev_nodelay: pcb -> Cstruct.t list -> (unit, write_error) result Lwt.t
 
+  (* send keep-alives with the given configuration on the connection *)
+  val enable_keepalive: t:t -> flow:pcb -> time:Duration.t -> interval:Duration.t -> probes:int -> unit
+
+  (* stop sending keep-alives *)
+  val disable_keepalive: pcb -> unit
+
   val create: Ip.t -> Clock.t -> t
 end
