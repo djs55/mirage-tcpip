@@ -28,6 +28,7 @@ let suite = [
   "socket"         , Test_socket.suite      ;
   "connect"        , Test_connect.suite     ;
   "iperf"          , Test_iperf.suite       ;
+  "keepalive"      , Test_keepalive.suite   ;
 ]
 
 let run test () =
