@@ -57,3 +57,9 @@ let create_connection _t (dst,dst_port) =
       >>= fun () ->
       return (Ok fd))
     (fun exn -> return (Error (`Exn exn)))
+
+let enable_keepalive ~t:_t ~flow ~time ~interval ~probes =
+  Tcp_socket_options.enable_keepalive ~fd:flow ~time ~interval ~probes
+
+let disable_keepalive flow =
+  Tcp_socket_options.disable_keepalive flow
