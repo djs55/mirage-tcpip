@@ -54,7 +54,7 @@ struct
     state: State.t;           (* Connection state *)
     urx: User_buffer.Rx.t;    (* App rx buffer *)
     utx: UTX.t;               (* App tx buffer *)
-    keepalive: KEEPALIVE.t option; (* Optional TCP keepalive state *)
+    mutable keepalive: KEEPALIVE.t option; (* Optional TCP keepalive state *)
   }
 
   type connection = pcb * unit Lwt.t
@@ -272,7 +272,7 @@ struct
       rx_wnd: int;
       rx_wnd_scaleoffer: int }
 
-  let new_pcb ?keepalive t params id =
+  let new_pcb t params id =
     let mtu_mss = Ip.mtu t.ip - Tcp_wire.sizeof_tcp in
     let { tx_wnd; sequence; options; tx_isn; rx_wnd; rx_wnd_scaleoffer } =
       params
@@ -317,17 +317,7 @@ struct
     let rxq = RXS.create ~rx_data ~wnd ~state ~tx_ack in
     (* Set up ACK module *)
     let ack = ACK.t ~send_ack ~last:(Sequence.incr rx_isn) in
-    (* If a keepalive configuration is provided, then set up the state *)
-    let keepalive_cb = function
-      | `SendProbe ->
-        Log.warn (fun f -> f "I should send a keep alive packet");
-        Lwt.return_unit
-      | `Close ->
-        Log.warn (fun f -> f "I should close the connection");
-        Lwt.return_unit in
-    let keepalive = match keepalive with
-      | Some configuration -> Some (KEEPALIVE.create configuration keepalive_cb t.clock)
-      | None -> None in
+    let keepalive = None in
     (* Construct basic PCB in Syn_received state *)
     let pcb = { state; rxq; txq; wnd; id; ack; urx; utx; keepalive } in
     (* Compose the overall thread from the various tx/rx threads
@@ -532,6 +522,25 @@ struct
         (Rx.input t RXS.({header = pkt; payload}))
         (* No existing PCB, so check if it is a SYN for a listening function *)
         (input_no_pcb t listeners (pkt, payload))
+
+  let keepalive_cb _pcb = function
+  | `SendProbe ->
+    Log.warn (fun f -> f "I should send a keep alive packet");
+    Lwt.return_unit
+  | `Close ->
+    Log.warn (fun f -> f "I should close the connection");
+    Lwt.return_unit
+
+  let disable_keepalive pcb =
+    match pcb.keepalive with
+    | None -> ()
+    | Some keepalive ->
+      KEEPALIVE.cancel keepalive;
+      pcb.keepalive <- None
+
+  let enable_keepalive t pcb configuration =
+    disable_keepalive pcb;
+    pcb.keepalive <- Some (KEEPALIVE.create configuration (keepalive_cb pcb) t.clock)
 
   (* Blocking read on a PCB *)
   let read pcb =

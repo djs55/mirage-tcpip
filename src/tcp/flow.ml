@@ -75,4 +75,7 @@ module Make(IP:Mirage_protocols_lwt.IP)(TM:Mirage_time_lwt.S)(C:Mirage_clock.MCL
     | Error e -> log_failure daddr dport e; Lwt.return @@ Error e
     | Ok (fl, _) -> Lwt.return (Ok fl)
 
+  let enable_keepalive = Pcb.enable_keepalive
+  let disable_keepalive = Pcb.disable_keepalive
+
 end

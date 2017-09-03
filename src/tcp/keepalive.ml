@@ -112,4 +112,7 @@ let next ~configuration ~ns state =
       t.state <- alive;
       Lwt.cancel t.timer;
       t.timer <- restart t
+
+    let cancel t =
+      Lwt.cancel t.timer
   end

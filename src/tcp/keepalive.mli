@@ -66,4 +66,7 @@ module Make(T:Mirage_time_lwt.S)(Clock:Mirage_clock.MCLOCK): sig
   val refresh: t -> unit
   (** [refresh t] marks the connection [t] as alive. This should be called
       when packets are received. *)
+
+  val cancel: t -> unit
+  (** [cancel t] cancels the keep-alive timers *)
 end
