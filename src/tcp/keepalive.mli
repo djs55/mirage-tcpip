@@ -27,8 +27,8 @@
  *)
 
 type configuration = {
-  time: int;     (** seconds to wait before sending keepalives *)
-  interval: int; (** interval between keepalives *)
+  time: Duration.t;     (** time to wait before sending keepalives *)
+  interval: Duration.t; (** interval between keepalives *)
   probes: int;   (** total number of keepalives to send before concluding failure *)
 }
 (** The requested configuration for a connection *)
@@ -37,9 +37,9 @@ val default: configuration
 (** The default configuration: the same parameters as Linux *)
 
 type action = [
-  | `SendProbe     (** we should send a keep-alive now *)
-  | `Wait of int64 (** sleep for a given number of nanoseconds *)
-  | `Close         (** connection should be closed *)
+  | `SendProbe          (** we should send a keep-alive now *)
+  | `Wait of Duration.t (** sleep for a given number of nanoseconds *)
+  | `Close              (** connection should be closed *)
 ]
 (** An I/O action to perform *)
 

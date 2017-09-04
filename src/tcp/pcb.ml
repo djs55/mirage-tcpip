@@ -538,8 +538,9 @@ struct
       KEEPALIVE.cancel keepalive;
       pcb.keepalive <- None
 
-  let enable_keepalive t pcb configuration =
+  let enable_keepalive ~t ~flow:pcb ~time ~interval ~probes =
     disable_keepalive pcb;
+    let configuration = Keepalive.({time; interval; probes}) in
     pcb.keepalive <- Some (KEEPALIVE.create configuration (keepalive_cb pcb) t.clock)
 
   (* Blocking read on a PCB *)

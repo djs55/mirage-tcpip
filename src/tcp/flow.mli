@@ -24,7 +24,7 @@ module Make (IP:Mirage_protocols_lwt.IP)
      and type ipinput = src:IP.ipaddr -> dst:IP.ipaddr -> Cstruct.t -> unit Lwt.t
   val connect : ip -> C.t -> t Lwt.t
 
-  val enable_keepalive: t -> flow -> Keepalive.configuration -> unit
+  val enable_keepalive: t:t -> flow:flow -> time:Duration.t -> interval:Duration.t -> probes:int -> unit
   (** [enable_keepalive t flow configuration] starts sending keepalives on the
       [flow] with the given [configuration] *)
 

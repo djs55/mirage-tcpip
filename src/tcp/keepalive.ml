@@ -27,20 +27,20 @@
  *)
 
 type configuration = {
-  time: int;
-  interval: int;
+  time: Duration.t;
+  interval: Duration.t;
   probes: int;
 }
 
 let default = {
-  time = 7200; (* 2 hours *)
-  interval = 75; (* 75 seconds *)
+  time = Duration.of_sec 7200; (* 2 hours *)
+  interval = Duration.of_sec 75; (* 75 seconds *)
   probes = 9;
 }
 
 type action = [
   | `SendProbe
-  | `Wait of int64
+  | `Wait of Duration.t
   | `Close
 ]
 
@@ -53,13 +53,13 @@ let alive = {
 }
 
 let next ~configuration ~ns state =
-  let time_ns = Duration.of_sec configuration.time in
+  let time_ns = configuration.time in
   (* Wait until [time] has gone past *)
   if time_ns > ns
   then `Wait (Int64.sub time_ns ns), alive
   else begin
     let sending_probes_for_ns = Int64.sub ns time_ns in
-    let interval_ns = Duration.of_sec configuration.interval in
+    let interval_ns = configuration.interval in
     let should_have_sent = Int64.(to_int (div sending_probes_for_ns interval_ns)) in
     if should_have_sent > configuration.probes
     then `Close, state
