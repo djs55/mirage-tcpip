@@ -57,3 +57,15 @@ let create_connection _t (dst,dst_port) =
       >>= fun () ->
       return (Ok fd))
     (fun exn -> return (Error (`Exn exn)))
+
+external tcp_set_keepalive_params: Unix.file_descr -> int -> int -> int -> unit = "caml_tcp_set_keepalive_params"
+
+let enable_keepalive ~t:_t ~flow ~time ~interval ~probes =
+  let fd = Lwt_unix.unix_file_descr flow in
+  let time = min 1 (Duration.to_sec time) in
+  let interval = min 1 (Duration.to_sec interval) in
+  tcp_set_keepalive_params fd time interval probes;
+  Lwt_unix.setsockopt flow Lwt_unix.SO_KEEPALIVE true
+
+let disable_keepalive flow =
+  Lwt_unix.setsockopt flow Lwt_unix.SO_KEEPALIVE false
