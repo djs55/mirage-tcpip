@@ -213,6 +213,34 @@ module Drop_1_second_after_1_megabyte : Backend = struct
 
 end
 
+(** This backend has a global on/off switch which drops all the packets *)
+module On_off_switch : Backend = struct
+  module X = Basic_backend.Make
+  include X
+
+  let send_packets = ref true
+
+  let write t id buffer =
+    if not !send_packets then
+      begin
+        MProf.Trace.label "pkt_drop";
+        Lwt.return (Ok ()) (* drop packet *)
+      end else
+      X.write t id buffer (* pass to real write *)
+
+  let writev t id buffers =
+    if not !send_packets then
+      begin
+        MProf.Trace.label "pkt_drop";
+        Lwt.return (Ok ()) (* drop packet *)
+      end else
+      X.writev t id buffers (* pass to real writev *)
+
+  let create () =
+    X.create ~use_async_readers:true ~yield:(fun() -> Lwt_main.yield () ) ()
+
+end
+
 (** This backend delivers all packets unmodified *)
 module Basic : Backend = struct
   module X = Basic_backend.Make

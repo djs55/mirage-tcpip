@@ -62,8 +62,8 @@ let (>>=) = Lwt.(>>=)
 let src = Logs.Src.create "test_keepalive" ~doc:"keepalive tests"
 module Log = (val Logs.src_log src : Logs.LOG)
 
-module Test_connect (B : Vnetif_backends.Backend) = struct
-  module V = VNETIF_STACK (B)
+module Test_connect = struct
+  module V = VNETIF_STACK (Vnetif_backends.On_off_switch)
 
   let netmask = 24
   let gw = Some (Ipaddr.V4.of_string_exn "10.0.0.1")
@@ -131,10 +131,9 @@ module Test_connect (B : Vnetif_backends.Backend) = struct
 end
 
 let test_tcp_connect_two_stacks_basic () =
-  let module Test = Test_connect(Vnetif_backends.Basic) in
-  Test.record_pcap
+  Test_connect.record_pcap
     "tcp_connect_two_stacks_basic.pcap"
-    Test.test_tcp_connect_two_stacks
+    Test_connect.test_tcp_connect_two_stacks
 
 let suite_2 = [
 
