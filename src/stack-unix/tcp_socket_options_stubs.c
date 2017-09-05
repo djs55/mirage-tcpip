@@ -31,6 +31,9 @@
 #include <netinet/in.h>
 #endif
 
+/* Round up to the next second */
+#define SECONDS_OF_MILLISECONDS(x) ( (x + 999) / 1000 )
+
 CAMLprim value
 caml_tcp_set_keepalive_params(value v_fd, value v_time, value v_interval, value v_probe)
 {
@@ -40,38 +43,38 @@ caml_tcp_set_keepalive_params(value v_fd, value v_time, value v_interval, value 
   DWORD dwBytesRet=0;
   struct tcp_keepalive alive;
   alive.onoff = TRUE;
-  alive.keepalivetime = Int_val(v_time);
-  alive.keepaliveinterval = Int_val(v_interval);
+  alive.keepalivetime = Int_val(v_time); /* ms */
+  alive.keepaliveinterval = Int_val(v_interval); /* ms */
   if (WSAIoctl(s, SIO_KEEPALIVE_VALS, &alive, sizeof(alive),
     NULL, 0, &dwBytesRet, NULL, NULL) == SOCKET_ERROR) {
     win32_maperr(WSAGetLastError());
   }
 #elif DARWIN
   int s = Int_val(v_fd);
-  int optval = Int_val(v_time) * 1000; /* ms */
+  int optval = SECONDS_OF_MILLISECONDS(Int_val(v_time));
   if(setsockopt(s, IPPROTO_TCP, TCP_KEEPALIVE, &optval, sizeof optval) < 0) {
     uerror("setsockopt", Nothing);
   }
-  optval = Int_val(v_interval) * 1000; /* ms */
+  optval = SECONDS_OF_MILLISECONDS(Int_val(v_interval));
   if(setsockopt(s, IPPROTO_TCP, TCP_KEEPINTVL, &optval, sizeof optval) < 0) {
     uerror("setsockopt", Nothing);
   }
-  optval = Int_val(v_probe) * 1000; /* ms */
+  optval = Int_val(v_probe);
   if(setsockopt(s, IPPROTO_TCP, TCP_KEEPCNT, &optval, sizeof optval) < 0) {
     uerror("setsockopt", Nothing);
   }
 #elif LINUX
   int s = Int_val(v_fd);
-  int optval = Int_val(v_time); /* s */
-  if(setsockopt(s, SOL_TCP, SO_KEEPIDLE, &optval, optlen) < 0) {
+  int optval = SECONDS_OF_MILLISECONDS(Int_val(v_time));
+  if(setsockopt(s, SOL_TCP, TCP_KEEPIDLE, &optval, optlen) < 0) {
     uerror("setsockopt", Nothing);
   }
-  optval = Int_val(v_interval); /* s */
-  if(setsockopt(s, SOL_TCP, SO_KEEPINTVL, &optval, sizeof optval) < 0) {
+  optval = SECONDS_OF_MILLISECONDS(Int_val(v_interval));
+  if(setsockopt(s, SOL_TCP, TCP_KEEPINTVL, &optval, sizeof optval) < 0) {
     uerror("setsockopt", Nothing);
   }
-  optval = Int_val(v_probe); /* s */
-  if(setsockopt(s, SOL_TCP, SO_KEEPCNT, &optval, sizeof optval) < 0) {
+  optval = Int_val(v_probe);
+  if(setsockopt(s, SOL_TCP, TCP_KEEPCNT, &optval, sizeof optval) < 0) {
     uerror("setsockopt", Nothing);
   }
 #else

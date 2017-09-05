@@ -18,8 +18,8 @@ external tcp_set_keepalive_params: Unix.file_descr -> int -> int -> int -> unit 
 
 let enable_keepalive ~fd ~time ~interval ~probes =
   let fd' = Lwt_unix.unix_file_descr fd in
-  let time = min 1 (Duration.to_sec time) in
-  let interval = min 1 (Duration.to_sec interval) in
+  let time = Duration.to_ms time in
+  let interval = Duration.to_ms interval in
   tcp_set_keepalive_params fd' time interval probes;
   Lwt_unix.setsockopt fd Lwt_unix.SO_KEEPALIVE true
 
