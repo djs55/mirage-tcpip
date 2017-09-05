@@ -214,7 +214,7 @@ module Drop_1_second_after_1_megabyte : Backend = struct
 end
 
 (** This backend has a global on/off switch which drops all the packets *)
-module On_off_switch : Backend = struct
+module On_off_switch = struct
   module X = Basic_backend.Make
   include X
 

@@ -114,10 +114,11 @@ module Test_connect = struct
         or_error "connect" conn (server_ip, 80) >>= fun flow ->
         V.Stackv4.TCPV4.enable_keepalive ~t:(V.Stackv4.tcpv4 s2) ~flow ~time:0L ~interval:(Duration.of_sec 1) ~probes:3;
         Logs.debug (fun f -> f "Connected to other end...");
-        V.Stackv4.TCPV4.write flow (Cstruct.of_string test_string) >>= function
-        | Error `Closed -> err_write_eof ()
-        | Error e -> err_write e
-        | Ok ()   ->
+        Vnetif_backends.On_off_switch.send_packets := false;
+        V.Stackv4.TCPV4.read flow  >>= function
+        | Ok `Eof -> err_read_eof ()
+        | Error e -> err_read e
+        | Ok (`Data _)   ->
           Logs.debug (fun f -> f "wrote hello world");
           V.Stackv4.TCPV4.close flow >>= fun () ->
           Lwt_unix.sleep 1.0 >>= fun () -> (* record some traffic after close *)
