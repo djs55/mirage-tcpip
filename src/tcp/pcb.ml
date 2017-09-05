@@ -523,9 +523,16 @@ struct
         (* No existing PCB, so check if it is a SYN for a listening function *)
         (input_no_pcb t listeners (pkt, payload))
 
-  let keepalive_cb _t pcb = function
+  let keepalive_cb t pcb = function
   | `SendProbe ->
-    Log.warn (fun f -> f "I should send a keep alive packet");
+    Log.debug (fun f -> f "Sending keepalive on connection %a" WIRE.pp pcb.id);
+    let flags = Segment.No_flags in
+    let wnd = pcb.wnd in
+    let options = [] in
+    let seq = Sequence.pred @@ Window.tx_nxt wnd in
+    (* if the sending fails this behaves like a packet drop which will cause
+       the connection to be eventually closed after the probes are sent *)
+    Tx.xmit_pcb t.ip pcb.id ~flags ~wnd ~options ~seq (Cstruct.create 0) >>= fun _ ->
     Lwt.return_unit
   | `Close ->
     Log.debug (fun f -> f "Keepalive timer expired, resetting connection %a" WIRE.pp pcb.id);
