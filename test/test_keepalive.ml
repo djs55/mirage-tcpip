@@ -62,6 +62,8 @@ let (>>=) = Lwt.(>>=)
 let src = Logs.Src.create "test_keepalive" ~doc:"keepalive tests"
 module Log = (val Logs.src_log src : Logs.LOG)
 
+(* Establish a TCP connection, enable keepalives on the connection, tell the network
+   to drop all packets and check that the keep-alives detect the failure. *)
 module Test_connect = struct
   module V = VNETIF_STACK (Vnetif_backends.On_off_switch)
 
@@ -86,7 +88,7 @@ module Test_connect = struct
     | Ok `Eof      -> Lwt.return_unit
     | Ok (`Data _) -> failf "accept: expected to get EOF in read, but got data"
 
-  let test_tcp_connect_two_stacks () =
+  let test_tcp_keepalive_timeout () =
     let timeout = 15.0 in
     Lwt.pick [
       (Lwt_unix.sleep timeout >>= fun () ->
@@ -121,15 +123,14 @@ module Test_connect = struct
 
 end
 
-let test_tcp_connect_two_stacks_basic () =
+let test_tcp_keepalive_timeout () =
   Test_connect.record_pcap
-    "tcp_connect_two_stacks_basic.pcap"
-    Test_connect.test_tcp_connect_two_stacks
+    "test_tcp_keepalive_timeout.pcap"
+    Test_connect.test_tcp_keepalive_timeout
 
 let suite_2 = [
-
-  "connect two stacks, basic test", `Quick,
-  test_tcp_connect_two_stacks_basic;
+  "check that TCP keepalives detect a network failure", `Quick,
+  test_tcp_keepalive_timeout;
 ]
 
 let suite = suite_1 @ suite_2
