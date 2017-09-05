@@ -223,6 +223,7 @@ module On_off_switch = struct
   let write t id buffer =
     if not !send_packets then
       begin
+        Logs.info (fun f -> f "write dropping 1 packet (length %d)" (Cstruct.len buffer));
         MProf.Trace.label "pkt_drop";
         Lwt.return (Ok ()) (* drop packet *)
       end else
@@ -231,6 +232,7 @@ module On_off_switch = struct
   let writev t id buffers =
     if not !send_packets then
       begin
+        Logs.info (fun f -> f "writev dropping 1 packet (length %d)" (Cstruct.lenv buffers));
         MProf.Trace.label "pkt_drop";
         Lwt.return (Ok ()) (* drop packet *)
       end else
