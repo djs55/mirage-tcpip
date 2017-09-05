@@ -69,7 +69,6 @@ module Test_connect = struct
   let gw = Some (Ipaddr.V4.of_string_exn "10.0.0.1")
   let client_ip = Ipaddr.V4.of_string_exn "10.0.0.101"
   let server_ip = Ipaddr.V4.of_string_exn "10.0.0.100"
-  let test_string = "Hello world from Mirage 123456789...."
   let backend = V.create_backend ()
 
   let err_read_eof () = failf "accept got EOF while reading"
@@ -79,22 +78,13 @@ module Test_connect = struct
     let err = Format.asprintf "%a" V.Stackv4.TCPV4.pp_error e in
     failf "Error while reading: %s" err
 
-  let err_write e =
-    let err = Format.asprintf "%a" V.Stackv4.TCPV4.pp_write_error e in
-    failf "client tried to write, got %s" err
-
-  let accept flow expected =
+  let accept flow =
     let ip, port = V.Stackv4.TCPV4.dst flow in
     Logs.debug (fun f -> f "Accepted connection from %s:%d" (Ipaddr.V4.to_string ip) port);
     V.Stackv4.TCPV4.read flow >>= function
     | Error e      -> err_read e
-    | Ok `Eof      -> err_read_eof ()
-    | Ok (`Data b) ->
-      Lwt_unix.sleep 0.1 >>= fun () ->
-      (* sleep first to capture data in pcap *)
-      Alcotest.(check string) "accept" expected (Cstruct.to_string b);
-      Logs.debug (fun f -> f "Connection closed");
-      Lwt.return_unit
+    | Ok `Eof      -> Lwt.return_unit
+    | Ok (`Data _) -> failf "accept: expected to get EOF in read, but got data"
 
   let test_tcp_connect_two_stacks () =
     let timeout = 15.0 in
@@ -103,7 +93,7 @@ module Test_connect = struct
         failf "connect test timedout after %f seconds" timeout) ;
 
       (V.create_stack backend server_ip netmask gw >>= fun s1 ->
-        V.Stackv4.listen_tcpv4 s1 ~port:80 (fun f -> accept f test_string);
+        V.Stackv4.listen_tcpv4 s1 ~port:80 (fun f -> accept f);
         V.Stackv4.listen s1) ;
 
       (Lwt_unix.sleep 0.1 >>= fun () ->
@@ -116,10 +106,10 @@ module Test_connect = struct
         Logs.debug (fun f -> f "Connected to other end...");
         Vnetif_backends.On_off_switch.send_packets := false;
         V.Stackv4.TCPV4.read flow  >>= function
-        | Ok `Eof -> err_read_eof ()
-        | Error e -> err_read e
-        | Ok (`Data _)   ->
-          Logs.debug (fun f -> f "wrote hello world");
+        | Error e      -> err_read e
+        | Ok (`Data _) -> failf "read: expected to get EOF, but got data"
+        | Ok `Eof ->
+          Logs.debug (fun f -> f "connection read EOF as expected");
           V.Stackv4.TCPV4.close flow >>= fun () ->
           Lwt_unix.sleep 1.0 >>= fun () -> (* record some traffic after close *)
           Lwt.return_unit)]) ] >>= fun () ->

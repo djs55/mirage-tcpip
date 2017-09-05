@@ -523,12 +523,15 @@ struct
         (* No existing PCB, so check if it is a SYN for a listening function *)
         (input_no_pcb t listeners (pkt, payload))
 
-  let keepalive_cb _pcb = function
+  let keepalive_cb _t pcb = function
   | `SendProbe ->
     Log.warn (fun f -> f "I should send a keep alive packet");
     Lwt.return_unit
   | `Close ->
-    Log.warn (fun f -> f "I should close the connection");
+    Log.debug (fun f -> f "Keepalive timer expired, resetting connection %a" WIRE.pp pcb.id);
+    STATE.tick pcb.state State.Recv_rst;
+    (* Close the read direction *)
+    User_buffer.Rx.add_r pcb.urx None >>= fun () ->
     Lwt.return_unit
 
   let disable_keepalive pcb =
@@ -541,7 +544,7 @@ struct
   let enable_keepalive ~t ~flow:pcb ~time ~interval ~probes =
     disable_keepalive pcb;
     let configuration = Keepalive.({time; interval; probes}) in
-    pcb.keepalive <- Some (KEEPALIVE.create configuration (keepalive_cb pcb) t.clock)
+    pcb.keepalive <- Some (KEEPALIVE.create configuration (keepalive_cb t pcb) t.clock)
 
   (* Blocking read on a PCB *)
   let read pcb =
