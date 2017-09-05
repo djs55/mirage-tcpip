@@ -2,6 +2,8 @@ language: c
 script: bash -ex .travis-ci.sh
 sudo: required
 env:
+  global:
+  - PINS="mirage-protocols:git://github.com/djs55/mirage-protocols.git#keepalive"
   matrix:
   - OCAML_VERSION=4.03 PACKAGE=tcpip MIRAGE_MODE=unix
   - UPDATE_GCC_BINUTILS=1 OCAML_VERSION=4.03 PACKAGE=tcpip MIRAGE_MODE=xen
