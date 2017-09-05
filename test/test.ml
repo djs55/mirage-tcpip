@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *)
 
-let suite = [ (*
+let suite = [
   "checksums"      , Test_checksums.suite   ;
   "arp"            , Test_arp.suite         ;
   "ipv4"           , Test_ipv4.suite        ;
@@ -27,7 +27,7 @@ let suite = [ (*
   "rfc5961"        , Test_rfc5961.suite     ;
   "socket"         , Test_socket.suite      ;
   "connect"        , Test_connect.suite     ;
-  "iperf"          , Test_iperf.suite       ; *)
+  "iperf"          , Test_iperf.suite       ;
   "keepalive"      , Test_keepalive.suite   ;
 ]
 
