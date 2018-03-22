@@ -7,4 +7,5 @@
                 randomconv fmt mirage-time-lwt mirage-clock
                 mirage-random))
   (preprocess (pps (ppx_cstruct)))
+  (flags (:standard -w -3))
   ))
