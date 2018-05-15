@@ -126,7 +126,7 @@ struct
 
     (* Queue up an immediate close segment *)
     let close pcb =
-      Log.debug (fun f -> f "Closing connection %a" WIRE.pp pcb.id);
+      Log.info (fun f -> f "Closing connection %a" WIRE.pp pcb.id);
       match State.state pcb.state with
       | State.Established | State.Close_wait ->
         UTX.wait_for_flushed pcb.utx >>= fun () ->
@@ -135,7 +135,7 @@ struct
          TXS.output ~flags:Segment.Fin pcb.txq (Cstruct.create 0)
         )
       | _ ->
-        Log.debug (fun fmt ->
+        Log.info (fun fmt ->
             fmt "TX.close: close requested but no action needed, state=%a" State.pp pcb.state);
         Lwt.return_unit
 
@@ -243,22 +243,22 @@ struct
     try Some (Hashtbl.find h k) with Not_found -> None
 
   let clearpcb t id tx_isn =
-    Logs.(log_with_stats Debug "removing pcb from connection tables" t);
+    Logs.(log_with_stats Info "removing pcb from connection tables" t);
     match hashtbl_find t.channels id with
     | Some _ ->
       Hashtbl.remove t.channels id;
       Stats.decr_channel ();
-      Log.debug (fun f -> f "removed %a from active channels" WIRE.pp id);
+      Log.info (fun f -> f "removed %a from active channels" WIRE.pp id);
     | None ->
       match hashtbl_find t.listens id with
       | Some (isn, _) ->
         if isn = tx_isn then (
           Hashtbl.remove t.listens id;
           Stats.decr_listen ();
-          Log.debug (fun f -> f "removed %a from incomplete listen pcbs" WIRE.pp id);
+          Log.info (fun f -> f "removed %a from incomplete listen pcbs" WIRE.pp id);
         )
       | None ->
-        Log.debug (fun f -> f "error in removing %a - no such connection" WIRE.pp id)
+        Log.info (fun f -> f "error in removing %a - no such connection" WIRE.pp id)
 
   let pcb_allocs = ref 0
   let th_allocs = ref 0
@@ -286,7 +286,7 @@ struct
 
   let keepalive_cb t id wnd state urx = function
   | `SendProbe ->
-    Log.debug (fun f -> f "Sending keepalive on connection %a" WIRE.pp id);
+    Log.info (fun f -> f "Sending keepalive on connection %a" WIRE.pp id);
     (* From https://tools.ietf.org/html/rfc1122#page-101
 
       > 4.2.3.6  TCP Keep-Alives
@@ -310,7 +310,7 @@ struct
     Tx.xmit_pcb t.ip id ~flags ~wnd ~options ~seq (Cstruct.create 0) >>= fun _ ->
     Lwt.return_unit
   | `Close ->
-    Log.debug (fun f -> f "Keepalive timer expired, resetting connection %a" WIRE.pp id);
+    Log.info (fun f -> f "Keepalive timer expired, resetting connection %a" WIRE.pp id);
     STATE.tick state State.Recv_rst;
     (* Close the read direction *)
     User_buffer.Rx.add_r urx None >>= fun () ->
@@ -394,13 +394,13 @@ struct
     Lwt.return (pcb, th, opts)
 
   let new_server_connection t params id pushf keepalive =
-    Logs.(log_with_stats Debug "new-server-connection" t);
+    Logs.(log_with_stats Info "new-server-connection" t);
     new_pcb t params id keepalive >>= fun (pcb, th, opts) ->
     STATE.tick pcb.state State.Passive_open;
     STATE.tick pcb.state (State.Send_synack params.tx_isn);
     (* Add the PCB to our listens table *)
     if Hashtbl.mem t.listens id then (
-      Log.debug (fun f -> f "duplicate attempt to make a connection: %a .\
+      Log.info (fun f -> f "duplicate attempt to make a connection: %a .\
       Removing the old state and replacing with new attempt" WIRE.pp id);
       Hashtbl.remove t.listens id;
       Stats.decr_listen ();
@@ -413,7 +413,7 @@ struct
     Lwt.return (pcb, th)
 
   let new_client_connection t params id ack_number keepalive =
-    Logs.(log_with_stats Debug "new-client-connection" t);
+    Logs.(log_with_stats Info "new-client-connection" t);
     let tx_isn = params.tx_isn in
     let params = { params with tx_isn = Sequence.succ tx_isn } in
     new_pcb t params id keepalive >>= fun (pcb, th, _) ->
@@ -431,7 +431,7 @@ struct
    (Sequence.compare (Sequence.succ tx_isn) ack_number) = 0
 
   let process_reset t id ~ack ~ack_number =
-    Logs.(log_with_stats Debug "process-reset" t);
+    Logs.(log_with_stats Info "process-reset" t);
     if ack then
         match hashtbl_find t.connects id with
         | Some (wakener, tx_isn, _) ->
@@ -459,7 +459,7 @@ struct
         Lwt.return_unit
 
   let process_synack t id ~tx_wnd ~ack_number ~sequence ~options ~syn ~fin =
-    Logs.(log_with_stats Debug "process-synack" t);
+    Logs.(log_with_stats Info "process-synack" t);
     match hashtbl_find t.connects id with
     | Some (wakener, tx_isn, keepalive) ->
       if is_correct_ack ~tx_isn ~ack_number then (
@@ -487,7 +487,7 @@ struct
       >>= fun _ -> Lwt.return_unit (* discard errors; we won't retry *)
 
   let process_syn t id ~listeners ~tx_wnd ~ack_number ~sequence ~options ~syn ~fin =
-    Logs.(log_with_stats Debug "process-syn" t);
+    Logs.(log_with_stats Info "process-syn" t);
     match listeners @@ WIRE.src_port id with
     | Some { process; keepalive } ->
       (* XXX: I've no clue why this is the way it is, static 16 bits
@@ -511,7 +511,7 @@ struct
 
   let process_ack t id ~pkt =
     let open RXS in
-    Logs.(log_with_stats Debug "process-ack" t);
+    Logs.(log_with_stats Info "process-ack" t);
     match hashtbl_find t.listens id with
     | Some (tx_isn, (pushf, newconn)) ->
       if Tcp_packet.(is_correct_ack ~tx_isn ~ack_number:pkt.header.ack_number) then begin
@@ -550,14 +550,14 @@ struct
       let open RXS in
       process_ack t id ~pkt:{ header = parsed; payload}
     | false, false, false ->
-      Log.debug (fun f -> f "incoming packet matches no connection table entry and has no useful flags set; dropping it");
+      Log.info (fun f -> f "incoming packet matches no connection table entry and has no useful flags set; dropping it");
       Lwt.return_unit
 
   (* Main input function for TCP packets *)
   let input t ~listeners ~src ~dst data =
     let open Tcp_packet in
     match Unmarshal.of_cstruct data with
-    | Error s -> Log.debug (fun f -> f "parsing TCP header failed: %s" s);
+    | Error s -> Log.info (fun f -> f "parsing TCP header failed: %s" s);
       Lwt.return_unit
     | Ok (pkt, payload) ->
       let id =
@@ -688,7 +688,7 @@ struct
     let window = 5840 in
     let th, wakener = MProf.Trace.named_task "TCP connect" in
     if Hashtbl.mem t.connects id then (
-      Log.debug (fun f ->
+      Log.info (fun f ->
           f "duplicate attempt to make a connection: [%a]. \
              Removing the old state and replacing with new attempt"
             WIRE.pp id);
@@ -704,15 +704,15 @@ struct
 
   let log_failure daddr dport = function
   | `Timeout ->
-    Log.debug (fun fmt ->
+    Log.info (fun fmt ->
       fmt "Timeout attempting to connect to %a:%d\n%!"
         Ipaddr.pp_hum (Ip.to_uipaddr daddr) dport)
   | `Refused ->
-    Log.debug (fun fmt ->
+    Log.info (fun fmt ->
       fmt "Refused connection to %a:%d\n%!"
         Ipaddr.pp_hum (Ip.to_uipaddr daddr) dport)
   | e ->
-    Log.debug (fun fmt ->
+    Log.info (fun fmt ->
       fmt "%a error connecting to %a:%d\n%!"
         pp_error e Ipaddr.pp_hum (Ip.to_uipaddr daddr) dport)
 
