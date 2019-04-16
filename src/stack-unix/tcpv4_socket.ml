@@ -48,6 +48,7 @@ let dst fd =
 
 let create_connection ?keepalive _t (dst,dst_port) =
   let fd = Lwt_unix.socket Lwt_unix.PF_INET Lwt_unix.SOCK_STREAM 0 in
+Lwt_unix.setsockopt fd Lwt_unix.TCP_NODELAY true;
   Lwt.catch (fun () ->
       Lwt_unix.connect fd
         (Lwt_unix.ADDR_INET ((Ipaddr_unix.V4.to_inet_addr dst), dst_port))
